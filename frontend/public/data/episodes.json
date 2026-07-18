@@ -1,0 +1,430 @@
+{
+    "series": {
+        "title": "Meine Weltreise",
+        "season": 1,
+        "year": 2025,
+        "description": "Begleite mich auf meiner Reise um die Welt. Jede Episode zeigt eine weitere Woche voller Abenteuer, neuer Kulturen und unvergesslicher Erinnerungen."
+    },
+    "episodes": [
+        {
+            "id": "ep01",
+            "number": 1,
+            "title": "Willkommen in Down Under",
+            "country": "Australien",
+            "location": "Sydney",
+            "date": "Woche 1 · 2025",
+            "duration": 24,
+            "description": "Ankunft in Sydney: Opera House, Harbour Bridge und die ersten Schritte auf australischem Boden.",
+            "longDescription": "Die Reise beginnt in der pulsierenden Hafenstadt Sydney. Von der weltberühmten Oper über die imposante Harbour Bridge bis hin zu den lebendigen Vierteln Bondi und The Rocks – diese Episode fängt das Lebensgefühl von Down Under vom ersten Moment an ein.",
+            "thumbnail": "thumbnails/ep01.jpg",
+            "video": "videos/ep01.mp4",
+            "highlights": [
+                "Sonnenaufgang an der Sydney Opera House",
+                "Coastal Walk von Bondi nach Coogee",
+                "Erste Kängurus im Blue Gum Park",
+                "Streetfood-Tour durch Chinatown"
+            ],
+            "travel": {
+                "Anreise": "Direktflug FRA → SYD",
+                "Unterkunft": "Hostel in Surry Hills",
+                "Wetter": "Sonnig, 26°C"
+            }
+        },
+        {
+            "id": "ep02",
+            "number": 2,
+            "title": "Blue Mountains & Wildnis",
+            "country": "Australien",
+            "location": "Blue Mountains",
+            "date": "Woche 2 · 2025",
+            "duration": 22,
+            "description": "Nebelverhangene Täler, uralte Eukalyptuswälder und die Three Sisters bei Sonnenaufgang.",
+            "longDescription": "Nur zwei Stunden westlich von Sydney öffnen sich die Blue Mountains – ein UNESCO-Welterbe, das seinen Namen dem bläulichen Dunst der Eukalyptusbäume verdankt. Wanderungen durch tiefe Schluchten, Wasserfälle und die berühmten Three Sisters warten.",
+            "thumbnail": "thumbnails/ep02.jpg",
+            "video": "videos/ep02.mp4",
+            "highlights": [
+                "Sunrise am Echo Point",
+                "Wanderung zum Wentworth Falls",
+                "Scenic Railway – steilste Bahn der Welt",
+                "Kakadus in freier Wildbahn"
+            ],
+            "travel": {
+                "Anreise": "Zug ab Sydney Central",
+                "Unterkunft": "Cabin in Katoomba",
+                "Highlight": "Bushwalking bei Sonnenaufgang"
+            }
+        },
+        {
+            "id": "ep03",
+            "number": 3,
+            "title": "Surferparadies Byron Bay",
+            "country": "Australien",
+            "location": "Byron Bay",
+            "date": "Woche 3 · 2025",
+            "duration": 26,
+            "description": "Wellenreiten, Hippie-Vibes und der östlichste Punkt Australiens.",
+            "longDescription": "Byron Bay ist Kult. Hier treffen Backpacker, Surfer und Aussteiger aufeinander. Vom Cape Byron Lighthouse geht der Blick über den Pazifik – wenn du Glück hast, ziehen Delfine oder Buckelwale vorbei.",
+            "thumbnail": "thumbnails/ep03.jpg",
+            "video": "videos/ep03.mp4",
+            "highlights": [
+                "Erste Surfstunde am Main Beach",
+                "Cape Byron Lighthouse Walk",
+                "Farmers Market mit lokaler Küche",
+                "Live-Musik am Strand"
+            ],
+            "travel": {
+                "Anreise": "Greyhound Bus ab Sydney",
+                "Unterkunft": "Beachfront Hostel",
+                "Vibe": "Entspannt & bunt"
+            }
+        },
+        {
+            "id": "ep04",
+            "number": 4,
+            "title": "Gold Coast Skyline",
+            "country": "Australien",
+            "location": "Gold Coast",
+            "date": "Woche 4 · 2025",
+            "duration": 23,
+            "description": "Hochhäuser trifft goldenen Sandstrand. Australiens Miami mit einem eigenen Charme.",
+            "longDescription": "Surfers Paradise, endlose Strände und die Themenparks der Gold Coast – hier wird es laut, bunt und ausgelassen. Ein Kontrast zum ruhigen Byron Bay nur wenige Kilometer entfernt.",
+            "thumbnail": "thumbnails/ep04.jpg",
+            "video": "videos/ep04.mp4",
+            "highlights": [
+                "Skypoint Observation Deck",
+                "Currumbin Wildlife Sanctuary",
+                "Nachtmarkt in Surfers Paradise",
+                "Sonnenuntergang von Q1 Tower"
+            ],
+            "travel": {
+                "Anreise": "Bus ab Byron Bay",
+                "Unterkunft": "Apartment mit Meerblick"
+            }
+        },
+        {
+            "id": "ep05",
+            "number": 5,
+            "title": "Brisbane – Stadt der Sonne",
+            "country": "Australien",
+            "location": "Brisbane",
+            "date": "Woche 5 · 2025",
+            "duration": 21,
+            "description": "River City mit entspannter Metropolen-Atmosphäre und dem berühmten South Bank Parklands.",
+            "longDescription": "Brisbane ist Australiens drittgrößte Stadt und überrascht mit ihrer sonnigen Leichtigkeit. Vom City Cat Fährboot aus lernst du die Stadt am besten kennen – mit Stopps in Fortitude Valley und South Bank.",
+            "thumbnail": "thumbnails/ep05.jpg",
+            "video": "videos/ep05.mp4",
+            "highlights": [
+                "South Bank Streetbeach mitten in der Stadt",
+                "Koalas kuscheln im Lone Pine Sanctuary",
+                "Kajakfahrt auf dem Brisbane River",
+                "Rooftop-Bars in Fortitude Valley"
+            ],
+            "travel": {
+                "Anreise": "Zug ab Gold Coast",
+                "Unterkunft": "Hostel in West End"
+            }
+        },
+        {
+            "id": "ep06",
+            "number": 6,
+            "title": "Fraser Island – Sand & Legenden",
+            "country": "Australien",
+            "location": "K'gari (Fraser Island)",
+            "date": "Woche 6 · 2025",
+            "duration": 28,
+            "description": "Größte Sandinsel der Welt: 4WD-Trip über Strände, Regenwald und kristallklare Süßwasserseen.",
+            "longDescription": "K'gari, wie die Aborigines Fraser Island nennen, ist ein Naturwunder. Der 75-Mile-Beach wird zur Autobahn, Regenwald wächst auf reinem Sand und Lake McKenzie strahlt in unwirklichem Türkis.",
+            "thumbnail": "thumbnails/ep06.jpg",
+            "video": "videos/ep06.mp4",
+            "highlights": [
+                "4WD-Tour über den 75-Mile-Beach",
+                "Baden im Lake McKenzie",
+                "Champagne Pools",
+                "Dingos in freier Wildbahn"
+            ],
+            "travel": {
+                "Anreise": "Fähre ab Hervey Bay",
+                "Unterkunft": "Eco Lodge & Camp"
+            }
+        },
+        {
+            "id": "ep07",
+            "number": 7,
+            "title": "Whitsundays – Segeln im Paradies",
+            "country": "Australien",
+            "location": "Whitsunday Islands",
+            "date": "Woche 7 · 2025",
+            "duration": 30,
+            "description": "74 Inseln, weißer Puderzuckersand und das Whitehaven Beach – ein Traum in Türkis.",
+            "longDescription": "Drei Tage Segeltörn durch das Great Barrier Reef Marine Park. Übernachten unter Sternenhimmel, Schnorcheln in Korallenriffen und die legendäre Whitehaven Beach – 98% reines Silica sand.",
+            "thumbnail": "thumbnails/ep07.jpg",
+            "video": "videos/ep07.mp4",
+            "highlights": [
+                "Hill Inlet Lookout",
+                "Schnorcheln am Border Island Reef",
+                "Sonnenuntergang von der Yacht",
+                "Meeresschildkröten hautnah"
+            ],
+            "travel": {
+                "Anreise": "Flug nach Hamilton Island",
+                "Unterkunft": "3-Tage-Segeltörn"
+            }
+        },
+        {
+            "id": "ep08",
+            "number": 8,
+            "title": "Great Barrier Reef",
+            "country": "Australien",
+            "location": "Cairns",
+            "date": "Woche 8 · 2025",
+            "duration": 27,
+            "description": "Tauchgang im größten Korallenriff der Erde – eine Unterwasserwelt aus einer anderen Dimension.",
+            "longDescription": "Cairns ist das Tor zum Great Barrier Reef. Auf einem Tagesausflug mit Tauchboot geht es zu den äußeren Riffen. Der erste Tauchgang wird ein Moment, den ich nie vergessen werde.",
+            "thumbnail": "thumbnails/ep08.jpg",
+            "video": "videos/ep08.mp4",
+            "highlights": [
+                "PADI Open Water Kurs",
+                "Begegnung mit Riffhaien",
+                "Fitzroy Island Tagestrip",
+                "Nachtmarkt in Cairns Esplanade"
+            ],
+            "travel": {
+                "Anreise": "Flug ab Hamilton Island",
+                "Unterkunft": "Backpacker in Cairns"
+            }
+        },
+        {
+            "id": "ep09",
+            "number": 9,
+            "title": "Magnetic Island Vibes",
+            "country": "Australien",
+            "location": "Magnetic Island",
+            "date": "Woche 9 · 2025",
+            "duration": 22,
+            "description": "Insel-Zeit mit Koalas im Baum, Klippenwanderungen und einsamen Buchten.",
+            "longDescription": "Nur 20 Fährminuten vor Townsville liegt Magnetic Island – klein, entspannt und voller wilder Koalas. Der Forts Walk führt zu alten Kriegsstellungen mit spektakulärem Ausblick.",
+            "thumbnail": "thumbnails/ep09.jpg",
+            "video": "videos/ep09.mp4",
+            "highlights": [
+                "Forts Walk mit Koala-Sichtungen",
+                "Sonnenuntergang am Horseshoe Bay",
+                "Schnorcheln in Geoffrey Bay",
+                "BBQ am Strand"
+            ],
+            "travel": {
+                "Anreise": "Fähre ab Townsville",
+                "Unterkunft": "Base Backpackers"
+            }
+        },
+        {
+            "id": "ep10",
+            "number": 10,
+            "title": "Uluru – Herz Australiens",
+            "country": "Australien",
+            "location": "Uluru / Red Centre",
+            "date": "Woche 10 · 2025",
+            "duration": 32,
+            "description": "Der rote Monolith im Outback – heiliger Ort der Anangu und magisches Naturwunder.",
+            "longDescription": "Uluru ist mehr als ein Felsen. Er ist ein spirituelles Zentrum, das bei Sonnenaufgang in tausend Rottönen leuchtet. Field of Light, Kata Tjuta und die Weite des Outbacks lassen mich sprachlos zurück.",
+            "thumbnail": "thumbnails/ep10.jpg",
+            "video": "videos/ep10.mp4",
+            "highlights": [
+                "Sonnenaufgang am Uluru",
+                "Field of Light Installation",
+                "Kata Tjuta Valley of the Winds",
+                "Sterne im Outback"
+            ],
+            "travel": {
+                "Anreise": "Flug nach Ayers Rock (AYQ)",
+                "Unterkunft": "Ayers Rock Resort",
+                "Wetter": "Tag 34°C, Nacht 5°C"
+            }
+        },
+        {
+            "id": "ep11",
+            "number": 11,
+            "title": "Melbourne – Coffee & Kultur",
+            "country": "Australien",
+            "location": "Melbourne",
+            "date": "Woche 11 · 2025",
+            "duration": 25,
+            "description": "Street Art, Rooftop-Bars und die beste Kaffeekultur des Kontinents.",
+            "longDescription": "Melbourne ist Australiens Kulturhauptstadt. Die Laneways sind vollgesprüht mit Kunst, in jeder Gasse wartet ein Specialty Coffee Shop und die Rooftop-Bars beim Sonnenuntergang sind unvergesslich.",
+            "thumbnail": "thumbnails/ep11.jpg",
+            "video": "videos/ep11.mp4",
+            "highlights": [
+                "Hosier Lane Street Art",
+                "Queen Victoria Market",
+                "Rooftop Cinema",
+                "St Kilda Beach Sunset & Pinguine"
+            ],
+            "travel": {
+                "Anreise": "Flug ab Alice Springs",
+                "Unterkunft": "Airbnb in Fitzroy"
+            }
+        },
+        {
+            "id": "ep12",
+            "number": 12,
+            "title": "Great Ocean Road",
+            "country": "Australien",
+            "location": "Great Ocean Road",
+            "date": "Woche 12 · 2025",
+            "duration": 29,
+            "description": "Die spektakulärste Küstenstraße der Welt – Twelve Apostles inklusive.",
+            "longDescription": "Ein Road Trip entlang der Great Ocean Road ist Pflicht. Die zerklüfteten Kalksteinfelsen der Twelve Apostles, versteckte Wasserfälle im Regenwald und wilde Küsten machen jede Kurve zum Postkartenmotiv.",
+            "thumbnail": "thumbnails/ep12.jpg",
+            "video": "videos/ep12.mp4",
+            "highlights": [
+                "Twelve Apostles bei Sonnenuntergang",
+                "Loch Ard Gorge",
+                "Koalas in Kennett River",
+                "Otway Regenwald Walk"
+            ],
+            "travel": {
+                "Anreise": "Mietwagen ab Melbourne",
+                "Unterkunft": "Roadtrip mit Übernachtungen"
+            }
+        },
+        {
+            "id": "ep13",
+            "number": 13,
+            "title": "Adelaide & Kangaroo Island",
+            "country": "Australien",
+            "location": "Kangaroo Island",
+            "date": "Woche 13 · 2025",
+            "duration": 26,
+            "description": "Weingüter im Barossa Valley und Australiens tierreichste Insel.",
+            "longDescription": "Adelaide ist die entspannte Weinstadt Südaustraliens. Von hier geht es auf die Kangaroo Island – Robben, Seelöwen, Kängurus und die Remarkable Rocks warten.",
+            "thumbnail": "thumbnails/ep13.jpg",
+            "video": "videos/ep13.mp4",
+            "highlights": [
+                "Weinverkostung im Barossa Valley",
+                "Remarkable Rocks",
+                "Seal Bay Robbenkolonie",
+                "Flinders Chase National Park"
+            ],
+            "travel": {
+                "Anreise": "Flug + Fähre",
+                "Unterkunft": "Farmstay auf Kangaroo Island"
+            }
+        },
+        {
+            "id": "ep14",
+            "number": 14,
+            "title": "Perth & Westküste – Auf Wiedersehen Australien",
+            "country": "Australien",
+            "location": "Perth",
+            "date": "Woche 14 · 2025",
+            "duration": 27,
+            "description": "Rottnest Island, quokka Selfies und der Abschied von 14 unglaublichen Wochen.",
+            "longDescription": "Die letzte Woche in Australien. Perth mit seinen weißen Stränden, Rottnest Island mit den freundlichsten Tieren der Welt (Quokkas!) und die endlose Weite der Westküste. Ein perfekter Abschied.",
+            "thumbnail": "thumbnails/ep14.jpg",
+            "video": "videos/ep14.mp4",
+            "highlights": [
+                "Quokka Selfie auf Rottnest Island",
+                "Cottesloe Beach Sunset",
+                "Fremantle Markets",
+                "Pinnacles Desert Tagestrip"
+            ],
+            "travel": {
+                "Anreise": "Flug ab Adelaide",
+                "Unterkunft": "Apartment in Scarborough"
+            }
+        },
+        {
+            "id": "ep15",
+            "number": 15,
+            "title": "Bali – Zwischenstopp im Paradies",
+            "country": "Indonesien",
+            "location": "Ubud & Canggu, Bali",
+            "date": "Woche 15 · 2025",
+            "duration": 20,
+            "description": "Drei intensive Tage zwischen Reisterrassen, Yoga-Studios und Beach Clubs.",
+            "longDescription": "Nur 3 Tage – aber Bali packt eine ganze Welt in diese kurze Zeit. Von Ubuds spirituellen Tempeln über die legendären Reisterrassen von Tegalalang bis hin zu den Sunset-Strandbars in Canggu.",
+            "thumbnail": "thumbnails/ep15.jpg",
+            "video": "videos/ep15.mp4",
+            "highlights": [
+                "Tegalalang Reisterrassen bei Sonnenaufgang",
+                "Tirta Empul Wassertempel-Ritual",
+                "Sunset am Old Man's Beach Club",
+                "Warung-Food auf lokalen Märkten"
+            ],
+            "travel": {
+                "Anreise": "Flug ab Perth nach Denpasar",
+                "Unterkunft": "Villa in Ubud + Canggu",
+                "Dauer": "3 Tage"
+            }
+        },
+        {
+            "id": "ep16",
+            "number": 16,
+            "title": "Lombok & Gili-Inseln",
+            "country": "Indonesien",
+            "location": "Lombok",
+            "date": "Woche 16 · 2025",
+            "duration": 25,
+            "description": "Balis ruhige Schwester: Vulkane, einsame Strände und die traumhaften Gili-Inseln.",
+            "longDescription": "Lombok ist Bali vor 20 Jahren. Weniger Touristen, mehr Natur. Der Mount Rinjani ragt majestätisch über die Insel, die Strände sind menschenleer und die Gili-Inseln vor der Küste ein Traum ohne Motorräder.",
+            "thumbnail": "thumbnails/ep16.jpg",
+            "video": "videos/ep16.mp4",
+            "highlights": [
+                "Schnorcheln mit Schildkröten in Gili Trawangan",
+                "Wasserfall Tiu Kelep",
+                "Surfen in Kuta Lombok",
+                "Sonnenaufgang am Bukit Selong"
+            ],
+            "travel": {
+                "Anreise": "Fast Boat ab Bali",
+                "Unterkunft": "Bungalow auf Gili Air"
+            }
+        },
+        {
+            "id": "ep17",
+            "number": 17,
+            "title": "Palawan – Perle der Philippinen",
+            "country": "Philippinen",
+            "location": "El Nido & Coron",
+            "date": "Woche 17 · 2025",
+            "duration": 30,
+            "description": "Kalksteinklippen, versteckte Lagunen und Bootstouren, die aussehen wie CGI.",
+            "longDescription": "Palawan wurde nicht ohne Grund zur schönsten Insel der Welt gewählt. Die Big Lagoon in El Nido ist ein Naturwunder, die Wrackspots in Coron sind Weltklasse und der Kayangan Lake sieht aus wie gemalt.",
+            "thumbnail": "thumbnails/ep17.jpg",
+            "video": "videos/ep17.mp4",
+            "highlights": [
+                "Big Lagoon Kayak-Tour",
+                "Wrackspotauchen in Coron",
+                "Kayangan Lake View Point",
+                "Island Hopping Tour A & C"
+            ],
+            "travel": {
+                "Anreise": "Flug ab Bali → Manila → Puerto Princesa",
+                "Unterkunft": "Beachfront in El Nido & Coron"
+            }
+        },
+        {
+            "id": "ep18",
+            "number": 18,
+            "title": "Cebu & Bohol – Finale",
+            "country": "Philippinen",
+            "location": "Cebu & Bohol",
+            "date": "Woche 18 · 2025",
+            "duration": 28,
+            "description": "Walhaie, Chocolate Hills und die kleinsten Primaten der Welt – das große Finale meiner Reise.",
+            "longDescription": "Zum Abschluss geht's zu den Walhaien von Oslob, den bizarren Chocolate Hills von Bohol und den knuffigen Tarsier-Äffchen. Ein würdiges Finale einer Reise, die mich für immer verändert hat.",
+            "thumbnail": "thumbnails/ep18.jpg",
+            "video": "videos/ep18.mp4",
+            "highlights": [
+                "Schwimmen mit Walhaien in Oslob",
+                "Chocolate Hills bei Sonnenaufgang",
+                "Tarsier-Sichtungen im Schutzgebiet",
+                "Kawasan Falls Canyoning"
+            ],
+            "travel": {
+                "Anreise": "Flug ab Palawan",
+                "Unterkunft": "Resorts auf Cebu & Bohol",
+                "Rückflug": "Cebu → Manila → Frankfurt"
+            }
+        }
+    ]
+}
