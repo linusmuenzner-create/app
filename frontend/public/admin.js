@@ -612,7 +612,7 @@
     }
 
     // ---- Login form ----
-    AuthGuard.mountAdminForm({
+    window.AuthGuard.mountAdminForm({
         formId: "admin-form", inputId: "admin-input", errorId: "admin-error",
         submitSelector: ".auth-submit",
         onSuccess: () => { state.role = "admin"; showDashboard(); },
@@ -620,7 +620,7 @@
 
     // ---- Logout ----
     document.getElementById("admin-logout-btn").addEventListener("click", async () => {
-        await AuthGuard.logout(); window.location.reload();
+        await window.AuthGuard.logout(); window.location.reload();
     });
 
     // ---- Init ----
