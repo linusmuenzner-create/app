@@ -1,0 +1,42 @@
+{
+  "summary": "Full backend + frontend test of the 'Meine Weltreise' streaming extension. 17/17 pytest cases pass (auth, content, admin RBAC, uploads, episodes/seasons/countries CRUD, security roundtrip, brute-force lockout). Playwright covers viewer login, search, country filter, episode modal, admin login, all 8 admin tabs, and logout — all pass. Credentials restored to original values after roundtrip tests.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/auth/access-code, /api/auth/admin", "issue": "Brute-force lockout key is IP-based, but the backend sits behind a reverse proxy that shows multiple upstream client IPs (10.219.0.x). Lockout can be evaded by hitting different pods and also affects legitimate users sharing the same NAT. Consider hashing X-Forwarded-For + a global sliding window per credential, or fetching real client IP."},
+      {"endpoint": "check_bruteforce (server.py:106-111)", "issue": "Once locked, EVERY subsequent request (including correct credentials) returns 429 for 15 min — a legitimate user can't recover. Consider verifying credentials first and only enforcing lockout after wrong ones (or shorter cooldown)."},
+      {"endpoint": "/api/admin/seasons DELETE", "issue": "Deleting a season does NOT cascade to its episodes; orphan episodes remain (dev comment acknowledges this)."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/conftest.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Consider treating check_bruteforce more carefully: verify credential first, only enforce lockout on wrong attempts, and use the real client IP (X-Forwarded-For) to avoid multi-pod evasion & shared-NAT false positives.",
+    "Optionally cascade-delete episodes when a season is deleted, or reject season deletion while episodes exist."
+  ],
+  "critical_code_review_comments": [
+    "server.py verify_pw runs bcrypt on strings that come straight from JSON — fine, but consider a max length cap to avoid CPU DoS (bcrypt is O(n)).",
+    "/api/admin/upload streams file content to disk before finishing size check — the current implementation is correct (streams in 1 MB chunks and aborts if over MAX_UPLOAD_MB).",
+    "Cookies are Secure+SameSite=lax + httpOnly — good; but no CSRF token on state-changing endpoints. Since SameSite=lax + JSON body + no simple GET mutations, risk is low but worth noting for future hardening.",
+    "seed_defaults uses INITIAL_ADMIN_PASSWORD='changeme' default if env var missing — .env currently sets the correct value; if the env is ever removed/reset, admin will silently be seeded to 'changeme'. Consider failing fast when the initial password env var is missing."
+  ],
+  "updated_files": [
+    "/app/backend/tests/backend_test.py",
+    "/app/backend/tests/conftest.py"
+  ],
+  "success_rate": {"backend": "100% (17/17 pytest)", "frontend": "100% (all viewer + admin flows)"},
+  "test_credentials": "Access code 'pineapplethefruitdude' and admin password 'Jagger-Admin-2026-Kx9!Pq' verified working after tests (restored from roundtrip). Stored in /app/memory/test_credentials.md.",
+  "seed_data_creation": "None persisted (test data was created & deleted within CRUD tests, TEST_ prefixed).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend URL is loaded from /app/frontend/.env (conftest handles this). All login attempts appear from the reverse-proxy IP as far as the backend is concerned; if a test session leaves login_attempts entries behind, the conftest session fixture clears them at start & end. If running only a subset of tests you may need to clear /app/backend db.login_attempts manually. Brute-force test loops up to 20 wrong attempts because the ingress load-balances across pods so counts are split. Frontend uses raw HTML + data-testid attributes throughout.",
+  "rca of the issue": "N/A — no unresolved bugs."
+}
