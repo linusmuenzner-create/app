@@ -2,6 +2,7 @@
 /* ============================================================
    Admin Dashboard – Meine Weltreise
    ============================================================ */
+/* global AuthGuard */
 (function () {
     const API = "/api";
     const state = {
@@ -582,20 +583,33 @@
         return data;
     }
 
-    // ---- Modal ----
-    let modalEl = null;
+    // ---- Modal (mit Stack für verschachtelte Modals) ----
+    const modalStack = [];
     function openModal(title, builder) {
-        closeModal();
-        modalEl = el("div", { class: "admin-modal", onclick: (e) => { if (e.target === modalEl) closeModal(); } },
+        const modal = el("div", { class: "admin-modal", onclick: (e) => { if (e.target === modal) closeModal(); } },
             el("div", { class: "admin-modal-inner" },
                 el("div", { class: "admin-modal-header" },
                     el("h2", {}, title),
                     el("button", { class: "admin-modal-close", onclick: closeModal, "aria-label": "Schließen" }, "×")),
                 (() => { const body = el("div", { class: "admin-modal-body" }); builder(body); return body; })(),
             ));
-        document.body.appendChild(modalEl);
+        // Vorheriges Modal visuell in den Hintergrund treten lassen
+        if (modalStack.length) {
+            const prev = modalStack[modalStack.length - 1];
+            prev.classList.add("is-under");
+        }
+        document.body.appendChild(modal);
+        modalStack.push(modal);
     }
-    function closeModal() { if (modalEl) { modalEl.remove(); modalEl = null; } }
+    function closeModal() {
+        const m = modalStack.pop();
+        if (!m) return;
+        m.remove();
+        if (modalStack.length) {
+            const top = modalStack[modalStack.length - 1];
+            top.classList.remove("is-under");
+        }
+    }
 
     // ---- Login form ----
     AuthGuard.mountAdminForm({

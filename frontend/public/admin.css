@@ -350,6 +350,11 @@
     padding: 30px 16px; overflow-y: auto;
     animation: fadeIn 0.2s ease;
 }
+.admin-modal.is-under {
+    z-index: 490;
+    filter: blur(2px) brightness(0.7);
+    pointer-events: none;
+}
 .admin-modal-inner {
     background: #1a1a1a;
     border: 1px solid var(--border);

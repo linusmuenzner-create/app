@@ -411,10 +411,16 @@ async def change_password(body: ChangePwIn, _: dict = Depends(require_role("admi
     await db.credentials.update_one({"_id": "singleton"}, {"$set": {"admin_password_hash": hash_pw(body.new_password)}}, upsert=True)
     return {"ok": True}
 
-# ------------- Uploaded files (serve, auth-guarded) -------------
-@api.get("/uploads/{subdir}/{fname}")
-async def serve_upload(subdir: str, fname: str, request: Request):
-    # Require viewer or admin
+# ------------- Uploaded files (serve, auth-guarded, mit Range-Support für Video-Streaming) -------------
+import mimetypes
+from fastapi.responses import StreamingResponse, FileResponse, Response
+
+def _guess_mime(name: str) -> str:
+    m, _ = mimetypes.guess_type(name)
+    return m or "application/octet-stream"
+
+@api.head("/uploads/{subdir}/{fname}")
+async def head_upload(subdir: str, fname: str, request: Request):
     tok = get_token(request)
     if not tok or not decode_token(tok):
         raise HTTPException(401, "Not authenticated")
@@ -423,8 +429,62 @@ async def serve_upload(subdir: str, fname: str, request: Request):
     path = UPLOAD_DIR / subdir / fname
     if not path.exists() or not path.is_file():
         raise HTTPException(404, "Datei nicht gefunden")
-    from fastapi.responses import FileResponse
-    return FileResponse(str(path))
+    size = path.stat().st_size
+    return Response(status_code=200, headers={
+        "Content-Length": str(size),
+        "Content-Type": _guess_mime(fname),
+        "Accept-Ranges": "bytes",
+    })
+
+@api.get("/uploads/{subdir}/{fname}")
+async def serve_upload(subdir: str, fname: str, request: Request):
+    tok = get_token(request)
+    if not tok or not decode_token(tok):
+        raise HTTPException(401, "Not authenticated")
+    if subdir not in ("videos", "images"):
+        raise HTTPException(404, "Not found")
+    path = UPLOAD_DIR / subdir / fname
+    if not path.exists() or not path.is_file():
+        raise HTTPException(404, "Datei nicht gefunden")
+
+    file_size = path.stat().st_size
+    mime = _guess_mime(fname)
+    range_header = request.headers.get("range")
+
+    # Kein Range-Header: ganze Datei mit Accept-Ranges
+    if not range_header:
+        return FileResponse(str(path), media_type=mime, headers={"Accept-Ranges": "bytes"})
+
+    # Range parsen: "bytes=start-end" oder "bytes=start-"
+    m = re.match(r"bytes=(\d+)-(\d*)", range_header)
+    if not m:
+        return FileResponse(str(path), media_type=mime, headers={"Accept-Ranges": "bytes"})
+
+    start = int(m.group(1))
+    end = int(m.group(2)) if m.group(2) else file_size - 1
+    if start >= file_size or end >= file_size or start > end:
+        return Response(status_code=416, headers={"Content-Range": f"bytes */{file_size}"})
+
+    length = end - start + 1
+    CHUNK = 1024 * 1024
+
+    def iter_range():
+        with path.open("rb") as f:
+            f.seek(start)
+            remaining = length
+            while remaining > 0:
+                chunk = f.read(min(CHUNK, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+                yield chunk
+
+    headers = {
+        "Content-Range": f"bytes {start}-{end}/{file_size}",
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(length),
+    }
+    return StreamingResponse(iter_range(), status_code=206, media_type=mime, headers=headers)
 
 # ------------- Health -------------
 @api.get("/")

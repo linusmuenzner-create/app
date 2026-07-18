@@ -325,8 +325,21 @@
         const video = $("#video-player");
         video.src = ep.video_url || "";
         video.poster = ep.thumbnail_url || placeholderThumb(ep);
+        // Fehler-Handler: zeige klare Meldung wenn Datei nicht abspielbar ist
+        const playerHint = $(".player-hint");
+        video.onerror = () => {
+            if (playerHint) {
+                playerHint.style.opacity = "1";
+                playerHint.innerHTML = ep.video_url
+                    ? `⚠️ Video konnte nicht abgespielt werden. Prüfe im Admin-Panel, ob die Datei ein unterstützter Codec ist (H.264/AAC MP4).`
+                    : `⚠️ Für diese Episode ist noch kein Video hinterlegt. Öffne den Admin-Bereich, um eines zuzuweisen.`;
+                playerHint.style.background = "rgba(229, 9, 20, 0.85)";
+                playerHint.style.color = "#fff";
+            }
+        };
         const saved = getProgress()[ep.id] || 0;
         video.onloadedmetadata = () => {
+            if (playerHint) { playerHint.style.background = ""; playerHint.style.color = ""; }
             if (saved && saved < video.duration - 5) video.currentTime = saved;
             video.play().catch(() => {});
         };
