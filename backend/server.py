@@ -203,30 +203,32 @@ async def auth_me(request: Request):
 @api.post("/auth/access-code")
 async def auth_access_code(body: AccessCodeIn, request: Request, response: Response):
     ip = request.client.host if request.client else "unknown"
-    await check_bruteforce(ip, "access")
     creds = await db.credentials.find_one({"_id": "singleton"})
     if not creds: raise HTTPException(500, "Zugangscode ist noch nicht gesetzt.")
-    if not verify_pw(body.code, creds["access_code_hash"]):
-        await record_fail(ip, "access")
-        raise HTTPException(401, "Falscher Zugangscode.")
-    await clear_fails(ip, "access")
-    token = make_token("viewer")
-    set_cookie(response, token)
-    return {"ok": True, "role": "viewer", "token": token}
+    # Prüfe zuerst Credentials — nur bei Falscheingabe zählt Brute-Force
+    if verify_pw(body.code, creds["access_code_hash"]):
+        await clear_fails(ip, "access")
+        token = make_token("viewer")
+        set_cookie(response, token)
+        return {"ok": True, "role": "viewer", "token": token}
+    # Falsch: prüfe Lockout, sonst zähle hoch
+    await check_bruteforce(ip, "access")
+    await record_fail(ip, "access")
+    raise HTTPException(401, "Falscher Zugangscode.")
 
 @api.post("/auth/admin")
 async def auth_admin(body: AdminPwIn, request: Request, response: Response):
     ip = request.client.host if request.client else "unknown"
-    await check_bruteforce(ip, "admin")
     creds = await db.credentials.find_one({"_id": "singleton"})
     if not creds: raise HTTPException(500, "Admin-Passwort ist noch nicht gesetzt.")
-    if not verify_pw(body.password, creds["admin_password_hash"]):
-        await record_fail(ip, "admin")
-        raise HTTPException(401, "Falsches Admin-Passwort.")
-    await clear_fails(ip, "admin")
-    token = make_token("admin")
-    set_cookie(response, token)
-    return {"ok": True, "role": "admin", "token": token}
+    if verify_pw(body.password, creds["admin_password_hash"]):
+        await clear_fails(ip, "admin")
+        token = make_token("admin")
+        set_cookie(response, token)
+        return {"ok": True, "role": "admin", "token": token}
+    await check_bruteforce(ip, "admin")
+    await record_fail(ip, "admin")
+    raise HTTPException(401, "Falsches Admin-Passwort.")
 
 @api.post("/auth/logout")
 async def auth_logout(response: Response):
@@ -277,8 +279,9 @@ async def admin_update_season(sid: str, body: SeasonIn, _: dict = Depends(requir
 
 @api.delete("/admin/seasons/{sid}")
 async def admin_delete_season(sid: str, _: dict = Depends(require_role("admin"))):
+    # Kaskadierendes Löschen aller Episoden der Staffel
+    await db.episodes.delete_many({"season_id": sid})
     await db.seasons.delete_one({"id": sid})
-    # Ihre Episoden werden auf orphan gesetzt — hier lieber ebenfalls löschen? Wir belassen:
     return {"ok": True}
 
 # ------------- Admin: Countries -------------
