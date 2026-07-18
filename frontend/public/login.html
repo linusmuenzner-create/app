@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="de">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta name="theme-color" content="#141414" />
+        <title>Zugang – Meine Weltreise</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+        <link rel="stylesheet" href="/style.css" />
+        <link rel="stylesheet" href="/auth.css" />
+    </head>
+    <body class="auth-body">
+        <div id="root" style="display:none"></div>
+
+        <div class="auth-page">
+            <div class="auth-bg"></div>
+            <div class="auth-vignette"></div>
+
+            <header class="auth-topbar">
+                <a href="/login.html" class="nav-logo">
+                    <span class="logo-mark">W</span>
+                    <span class="logo-text">Weltreise</span>
+                </a>
+            </header>
+
+            <main class="auth-card-wrap">
+                <div class="auth-card" data-testid="access-card">
+                    <div class="auth-brand-tag">Privat · Zugangsgeschützt</div>
+                    <h1 class="auth-title">Willkommen zurück.</h1>
+                    <p class="auth-sub">Diese Serie ist privat. Gib den Zugangscode ein, um fortzufahren.</p>
+
+                    <form id="access-form" class="auth-form" autocomplete="off">
+                        <label class="auth-label" for="access-input">Zugangscode</label>
+                        <div class="auth-input-wrap">
+                            <input
+                                id="access-input"
+                                name="code"
+                                class="auth-input"
+                                type="password"
+                                placeholder="Dein Zugangscode..."
+                                data-testid="access-code-input"
+                                required
+                                autocomplete="new-password"
+                            />
+                            <button type="button" class="auth-eye" id="toggle-eye" aria-label="Anzeigen">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                        <div id="access-error" class="auth-error" data-testid="access-error" hidden></div>
+                        <button class="btn btn-primary auth-submit" type="submit" data-testid="access-submit">
+                            <span class="btn-label">Zugang öffnen</span>
+                            <span class="btn-spinner" hidden></span>
+                        </button>
+                    </form>
+
+                    <div class="auth-divider"><span>oder</span></div>
+                    <a href="/admin.html" class="auth-admin-link" data-testid="admin-link">Als Admin anmelden →</a>
+                </div>
+            </main>
+
+            <footer class="auth-footer">
+                <div>© 2025 · Meine Weltreise · Eine private Reisedokumentation</div>
+            </footer>
+        </div>
+
+        <script src="/auth.js"></script>
+        <script>
+            AuthGuard.mountAccessForm({
+                formId: "access-form",
+                inputId: "access-input",
+                errorId: "access-error",
+                submitSelector: ".auth-submit",
+                onSuccess: () => (window.location.href = "/"),
+            });
+        </script>
+    </body>
+</html>

@@ -8,7 +8,7 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="%PUBLIC_URL%/style.css" />
+        <link rel="stylesheet" href="/style.css" />
         <title>Meine Weltreise – Staffel 1</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
@@ -45,6 +45,8 @@
                     <li><a href="#continue" data-testid="nav-continue">Weiter ansehen</a></li>
                     <li><a href="#episodes" data-testid="nav-episodes">Alle Folgen</a></li>
                     <li><a href="#favorites" data-testid="nav-favorites">Favoriten</a></li>
+                    <li><a href="/admin.html" data-testid="nav-admin">Admin</a></li>
+                    <li><a href="#" id="logout-btn" data-testid="nav-logout">Abmelden</a></li>
                 </ul>
                 <div class="nav-search">
                     <input
@@ -71,7 +73,7 @@
                 <div class="hero-badge" data-testid="hero-badge">
                     <span class="badge-dot"></span> Neue Serie · Original
                 </div>
-                <h1 class="hero-title" data-testid="hero-title">Meine Weltreise</h1>
+                <h1 class="hero-title" id="hero-title" data-testid="hero-title">Meine Weltreise</h1>
                 <div class="hero-meta">
                     <span class="hero-season" data-testid="hero-season">Staffel 1</span>
                     <span class="hero-dot">•</span>
@@ -81,7 +83,7 @@
                     <span class="hero-dot">•</span>
                     <span class="hero-hd">HD</span>
                 </div>
-                <p class="hero-description" data-testid="hero-description">
+                <p class="hero-description" id="hero-description" data-testid="hero-description">
                     Begleite mich auf meiner Reise um die Welt. Jede Episode zeigt eine weitere Woche voller
                     Abenteuer, neuer Kulturen und unvergesslicher Erinnerungen.
                 </p>
@@ -126,6 +128,11 @@
             <section class="filter-bar" data-testid="filter-bar">
                 <div class="filter-label">Filter nach Land:</div>
                 <div class="filter-chips" id="country-filters" data-testid="country-filters"></div>
+            </section>
+
+            <section class="filter-bar" id="season-filter-bar" data-testid="season-filter-bar" hidden>
+                <div class="filter-label">Staffel:</div>
+                <div class="filter-chips" id="season-filters" data-testid="season-filters"></div>
             </section>
 
             <!-- Alle Episoden -->
@@ -239,6 +246,6 @@
             </div>
         </footer>
 
-        <script src="%PUBLIC_URL%/script.js" defer></script>
+        <script src="/script.js" defer></script>
     </body>
 </html>
