@@ -307,7 +307,7 @@
         const drop = el("div", { class: "drop-zone", "data-testid": "video-drop-zone" },
             el("div", { class: "drop-icon", html: '<svg viewBox="0 0 24 24" width="42" height="42" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>' }),
             el("h3", {}, "Videos hierher ziehen"),
-            el("p", { class: "muted" }, "oder klicke, um mehrere Dateien auszuwählen. MP4 / WebM / MOV, max. 500 MB pro Datei."),
+            el("p", { class: "muted" }, "oder klicke, um mehrere Dateien auszuwählen. MP4 / WebM / MOV, max. 1 GB pro Datei."),
             el("input", { type: "file", id: "video-file-input", accept: "video/*", multiple: true, hidden: true }),
             el("button", { class: "btn btn-primary", onclick: () => document.getElementById("video-file-input").click() }, "Dateien auswählen"),
         );
