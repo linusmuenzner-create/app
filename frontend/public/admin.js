@@ -350,16 +350,23 @@
             const fill = row.querySelector(".u-bar-fill");
             const status = row.querySelector(".u-status");
             try {
-                // Kleine Dateien (<4 MB): direkter Upload. Große: chunked.
                 const url = f.size <= 4 * 1024 * 1024
                     ? await uploadFile(f, kind, (p) => { fill.style.width = `${p}%`; status.textContent = `${Math.round(p)}%`; })
                     : await uploadFileChunked(f, kind, (p) => { fill.style.width = `${p}%`; status.textContent = `${Math.round(p)}%`; });
                 fill.style.width = "100%";
                 status.innerHTML = `<span class="ok">✓ Erledigt</span>`;
                 row.appendChild(el("a", { href: url, target: "_blank", class: "u-link" }, "Ansehen"));
-                await loadAll();
+                // Nur State refreshen, NICHT das ganze Tab neu rendern —
+                // damit die Erfolgs-Row sichtbar bleibt.
+                try {
+                    const [media, episodes] = await Promise.all([get("/admin/media"), get("/admin/episodes")]);
+                    state.media = media || [];
+                    state.episodes = episodes || [];
+                } catch {}
+                toast(`${f.name} hochgeladen`);
             } catch (ex) {
                 status.innerHTML = `<span class="err">✗ ${ex.message}</span>`;
+                toast(`Upload fehlgeschlagen: ${ex.message}`, "error");
             }
         }
     }
