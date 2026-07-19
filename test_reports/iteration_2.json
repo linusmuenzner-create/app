@@ -1,0 +1,39 @@
+{
+  "summary": "Chunked upload feature (bugfix for HTTP 413 on large videos through K8s ingress) tested end-to-end. Backend: 10/10 pytest cases pass in new /app/backend/tests/test_chunked_upload.py — covers 401-unauth, invalid upload_id (path traversal 'foo/../bar' → 400), bad extension .exe → 415, kind='banana' → 400, chunk_index >= total_chunks → 400, full 9MB video split into 3 chunks with SHA-256 verified reassembly on disk and via /api/uploads/videos/<fname> (auth-guarded + Range 206), tmp dir cleanup, upload-chunk-abort, classic /admin/upload regression. Frontend: Admin login → Videos tab → 8MB .mp4 via set_input_files on #video-file-input triggered 3 POSTs to /api/admin/upload-chunk (all 200), backend logs confirm reassembly. Chunked path is correctly chosen for >4MB files. Regression tabs (Übersicht/Episoden/Einstellungen/Sicherheit) reachable.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "admin.js handleFiles (upload progress row)",
+        "issue": "After the last chunk succeeds, the success handler sets status to '✓ Erledigt' and then immediately awaits loadAll() which re-renders the Videos tab and wipes the upload-row from the DOM. The user only sees the ✓ for a split second. Functionally the upload succeeds and appears in the media library, but the confirmation UI is not persistent.",
+        "selector": ".upload-row .u-status",
+        "priority": "LOW"
+      }
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_chunked_upload.py",
+    "/app/test_reports/pytest/chunked_upload_results.xml"
+  ],
+  "action_items": [
+    "(Optional, low priority) In admin.js handleFiles: either skip loadAll() rerender for the Videos tab specifically, or persist the upload-row (e.g., render into an area outside the tab body, or re-render but keep the completed rows). Current behavior may confuse users into thinking the upload failed even though it succeeded."
+  ],
+  "critical_code_review_comments": [
+    "server.py upload-chunk: existing_size is computed BEFORE writing the current chunk, so if two clients race on the same upload_id they can each pass the size check but jointly exceed MAX_UPLOAD_MB. upload_id collision is unlikely with client-generated IDs but not guaranteed. Acceptable for a single-admin app.",
+    "server.py upload-chunk: no per-upload_id cleanup for stale tmp sessions (e.g. if user closes tab without calling abort). A periodic sweeper of /app/backend/uploads/tmp older than N hours would prevent disk fill.",
+    "server.py upload-chunk: filename sanitization (safe_filename) runs only at reassembly. The extension check uses Path(filename).suffix.lower() on raw filename — an attacker-controlled name like 'evil.mp4/../x.exe' still has suffix '.exe' so it is rejected, but a name like 'evil.mp4' passes even if content is not a video. Content-type sniffing would be stronger; current check matches the existing classic upload behavior.",
+    "server.py serve_upload: fname is joined directly into UPLOAD_DIR without path traversal guard. If a client requests /api/uploads/videos/..%2Fetc%2Fpasswd, FastAPI decodes it before the handler — a resolved-path/is_relative_to check would harden this. Not exploitable in current tests but worth hardening."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_chunked_upload.py"
+  ],
+  "success_rate": { "backend": "100% (10/10 pytest chunked_upload)", "frontend": "Chunked upload path verified via network + backend logs; ✓Erledigt UI marker not persistent" },
+  "test_credentials": "Admin PW 'Jagger-Admin-2026-Kx9!Pq' and access code 'pineapplethefruitdude' unchanged.",
+  "seed_data_creation": "All test uploads (TEST_bigvid.mp4, TEST_playwright_bigvid.mp4, TEST_abort.mp4, TEST_tiny.png) deleted at end via /api/admin/media/{id}. Verified via /api/admin/media listing.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Chunked-upload endpoints live at server.py lines 381-475. Tmp dir at /app/backend/uploads/tmp/<upload_id>. Frontend threshold is 4MB (admin.js line 354). To test chunked upload without waiting for the UI to reflect success, watch backend logs for `POST /api/admin/upload-chunk` sequence — the last one returns complete:true. The upload-row disappears after loadAll() re-renders; do not rely on wait_for_selector('.upload-row .u-status .ok').",
+  "rca of the issue": "Root cause of original bug: Kubernetes ingress imposes a body-size limit (~100MB) below the backend's MAX_UPLOAD_MB=1024. Fix: /api/admin/upload-chunk slices file into 4MB chunks client-side, backend appends them to /app/backend/uploads/tmp/<upload_id>/chunk_NNNNNN, and reassembles into /app/backend/uploads/{videos,images}/ on the final chunk. Verified: 9MB payload reassembled with SHA-256 match, Range GET on served file returns 206 with correct bytes."
+}

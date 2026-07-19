@@ -378,6 +378,102 @@ async def admin_upload(file: UploadFile = File(...), kind: str = Form("auto"), _
     await db.media.insert_one(media)
     return {"url": url, "kind": kind, "size": total, "id": media["id"]}
 
+# ---- Chunked Upload (für große Dateien > Ingress-Body-Limit) ----
+ALLOWED_VIDEO_EXT = {".mp4", ".mov", ".webm", ".mkv", ".m4v"}
+ALLOWED_IMAGE_EXT = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"}
+_TMP_UPLOADS = UPLOAD_DIR / "tmp"
+_TMP_UPLOADS.mkdir(parents=True, exist_ok=True)
+
+def _valid_upload_id(uid: str) -> bool:
+    return bool(re.fullmatch(r"[a-zA-Z0-9_-]{6,64}", uid))
+
+@api.post("/admin/upload-chunk")
+async def admin_upload_chunk(
+    file: UploadFile = File(...),
+    upload_id: str = Form(...),
+    chunk_index: int = Form(...),
+    total_chunks: int = Form(...),
+    filename: str = Form(...),
+    kind: str = Form(...),
+    _: dict = Depends(require_role("admin")),
+):
+    if not _valid_upload_id(upload_id):
+        raise HTTPException(400, "Ungültige upload_id")
+    if chunk_index < 0 or chunk_index >= total_chunks or total_chunks <= 0 or total_chunks > 5000:
+        raise HTTPException(400, "Ungültige Chunk-Parameter")
+    if kind not in ("video", "image"):
+        raise HTTPException(400, "kind muss 'video' oder 'image' sein")
+
+    ext = Path(filename).suffix.lower()
+    allowed = ALLOWED_VIDEO_EXT if kind == "video" else ALLOWED_IMAGE_EXT
+    if ext not in allowed:
+        raise HTTPException(415, f"Dateiendung {ext} nicht erlaubt")
+
+    session_dir = _TMP_UPLOADS / upload_id
+    session_dir.mkdir(parents=True, exist_ok=True)
+
+    # Prüfe kumulative Größe gegen MAX_UPLOAD_MB
+    max_bytes = MAX_UPLOAD_MB * 1024 * 1024
+    existing_size = sum(p.stat().st_size for p in session_dir.glob("chunk_*")) if session_dir.exists() else 0
+
+    chunk_path = session_dir / f"chunk_{chunk_index:06d}"
+    written = 0
+    with chunk_path.open("wb") as out:
+        while True:
+            data = await file.read(1024 * 1024)
+            if not data:
+                break
+            written += len(data)
+            if existing_size + written > max_bytes:
+                out.close()
+                # Aufräumen
+                shutil.rmtree(session_dir, ignore_errors=True)
+                raise HTTPException(413, f"Datei überschreitet Limit von {MAX_UPLOAD_MB} MB")
+            out.write(data)
+
+    # Letzter Chunk? -> Zusammensetzen
+    if chunk_index + 1 == total_chunks:
+        # Verifiziere Vollständigkeit
+        chunks = sorted(session_dir.glob("chunk_*"))
+        if len(chunks) != total_chunks:
+            shutil.rmtree(session_dir, ignore_errors=True)
+            raise HTTPException(400, f"Fehlende Chunks: erwartet {total_chunks}, gefunden {len(chunks)}")
+
+        subdir = "videos" if kind == "video" else "images"
+        final_name = f"{new_id()}_{safe_filename(filename)}"
+        dst = UPLOAD_DIR / subdir / final_name
+        total_size = 0
+        with dst.open("wb") as out:
+            for cp in chunks:
+                with cp.open("rb") as inp:
+                    while True:
+                        d = inp.read(1024 * 1024)
+                        if not d:
+                            break
+                        total_size += len(d)
+                        out.write(d)
+        shutil.rmtree(session_dir, ignore_errors=True)
+
+        url = f"/api/uploads/{subdir}/{final_name}"
+        media = {
+            "id": new_id(), "kind": kind, "url": url,
+            "name": filename, "size": total_size,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.media.insert_one(media)
+        return {"complete": True, "url": url, "kind": kind, "size": total_size, "id": media["id"]}
+
+    return {"complete": False, "chunk_index": chunk_index, "received_bytes": written}
+
+@api.post("/admin/upload-chunk-abort")
+async def admin_upload_chunk_abort(upload_id: str = Form(...), _: dict = Depends(require_role("admin"))):
+    if not _valid_upload_id(upload_id):
+        raise HTTPException(400, "Ungültige upload_id")
+    session_dir = _TMP_UPLOADS / upload_id
+    if session_dir.exists():
+        shutil.rmtree(session_dir, ignore_errors=True)
+    return {"ok": True}
+
 @api.get("/admin/media")
 async def admin_list_media(_: dict = Depends(require_role("admin"))):
     return [clean_doc(m) async for m in db.media.find({}).sort("created_at", -1).limit(500)]

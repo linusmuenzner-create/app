@@ -350,7 +350,10 @@
             const fill = row.querySelector(".u-bar-fill");
             const status = row.querySelector(".u-status");
             try {
-                const url = await uploadFile(f, kind, (p) => { fill.style.width = `${p}%`; status.textContent = `${Math.round(p)}%`; });
+                // Kleine Dateien (<4 MB): direkter Upload. Große: chunked.
+                const url = f.size <= 4 * 1024 * 1024
+                    ? await uploadFile(f, kind, (p) => { fill.style.width = `${p}%`; status.textContent = `${Math.round(p)}%`; })
+                    : await uploadFileChunked(f, kind, (p) => { fill.style.width = `${p}%`; status.textContent = `${Math.round(p)}%`; });
                 fill.style.width = "100%";
                 status.innerHTML = `<span class="ok">✓ Erledigt</span>`;
                 row.appendChild(el("a", { href: url, target: "_blank", class: "u-link" }, "Ansehen"));
@@ -380,6 +383,60 @@
                 }
             };
             xhr.onerror = () => reject(new Error("Netzwerkfehler"));
+            xhr.send(fd);
+        });
+    }
+
+    // Chunked-Upload: 4 MB Chunks (unter Kubernetes-Ingress-Body-Limit)
+    async function uploadFileChunked(file, kind, onProgress) {
+        const CHUNK = 4 * 1024 * 1024;
+        const total_chunks = Math.ceil(file.size / CHUNK);
+        const upload_id = `up_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        let uploaded = 0;
+        for (let i = 0; i < total_chunks; i++) {
+            const start = i * CHUNK;
+            const end = Math.min(start + CHUNK, file.size);
+            const blob = file.slice(start, end);
+            const result = await postChunk({
+                blob, upload_id, chunk_index: i, total_chunks,
+                filename: file.name, kind,
+                onChunkProgress: (loaded) => {
+                    const overall = ((uploaded + loaded) / file.size) * 100;
+                    onProgress(Math.min(99, overall));
+                },
+            });
+            uploaded += (end - start);
+            if (result.complete) {
+                onProgress(100);
+                return result.url;
+            }
+        }
+        throw new Error("Upload nicht komplettiert");
+    }
+
+    function postChunk({ blob, upload_id, chunk_index, total_chunks, filename, kind, onChunkProgress }) {
+        return new Promise((resolve, reject) => {
+            const fd = new FormData();
+            fd.append("file", blob, "chunk");
+            fd.append("upload_id", upload_id);
+            fd.append("chunk_index", String(chunk_index));
+            fd.append("total_chunks", String(total_chunks));
+            fd.append("filename", filename);
+            fd.append("kind", kind);
+            const xhr = new XMLHttpRequest();
+            xhr.open("POST", `${API}/admin/upload-chunk`);
+            xhr.withCredentials = true;
+            xhr.upload.onprogress = (e) => { if (e.lengthComputable) onChunkProgress(e.loaded); };
+            xhr.onload = () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try { resolve(JSON.parse(xhr.responseText)); } catch { reject(new Error("Parse-Fehler")); }
+                } else {
+                    let m = `HTTP ${xhr.status}`;
+                    try { m = JSON.parse(xhr.responseText).detail || m; } catch {}
+                    reject(new Error(m));
+                }
+            };
+            xhr.onerror = () => reject(new Error("Netzwerkfehler beim Chunk-Upload"));
             xhr.send(fd);
         });
     }
