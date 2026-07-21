@@ -545,45 +545,111 @@
     }
 
     // ---- Settings ----
+    const GOOGLE_FONTS = [
+        "Bebas Neue", "Inter", "Roboto", "Montserrat", "Playfair Display",
+        "Oswald", "Poppins", "Lora", "Raleway", "Anton", "Archivo",
+        "DM Sans", "Space Grotesk", "Fjalla One", "Josefin Sans", "Rubik",
+        "Work Sans", "Nunito", "Merriweather", "Cormorant Garamond",
+    ];
+
     function viewSettings(container) {
         const f = el("form", { class: "edit-form settings-form", onsubmit: async (e) => {
             e.preventDefault();
             const data = collectForm(f);
+            // Socials zusammenbauen
+            data.socials = {
+                instagram: (data.social_instagram || "").trim(),
+                youtube: (data.social_youtube || "").trim(),
+                tiktok: (data.social_tiktok || "").trim(),
+                x: (data.social_x || "").trim(),
+                website: (data.social_website || "").trim(),
+            };
+            // Nur nicht-leere behalten
+            Object.keys(data.socials).forEach(k => { if (!data.socials[k]) delete data.socials[k]; });
+            delete data.social_instagram; delete data.social_youtube;
+            delete data.social_tiktok; delete data.social_x; delete data.social_website;
             try {
                 const updated = await put("/admin/settings", data);
                 state.settings = updated;
-                toast("Einstellungen gespeichert");
+                toast("Einstellungen gespeichert – Änderungen sind sofort live");
             } catch (ex) { toast(ex.message, "error"); }
         }});
 
         f.appendChild(el("h3", {}, "Serie & Titel"));
-        appendField(f, "Serientitel", el("input", { name: "series_title", value: state.settings.series_title || "" }));
+        appendField(f, "Serientitel (Hero-Überschrift)", el("input", { name: "series_title", value: state.settings.series_title || "" }));
         appendField(f, "Standard-Staffelname", el("input", { name: "season_default_name", value: state.settings.season_default_name || "" }));
         appendField(f, "Hero-Untertitel", el("input", { name: "hero_subtitle", value: state.settings.hero_subtitle || "" }));
         appendField(f, "Hero-Beschreibung", el("textarea", { name: "hero_description", rows: 3 }, state.settings.hero_description || ""));
 
-        f.appendChild(el("h3", {}, "Bilder & Logo"));
-        appendField(f, "Titelbild (Hero-Bild)", pickerField("hero_image_url", state.settings.hero_image_url, "image"));
-        appendField(f, "Hero-Hintergrundbild", pickerField("hero_bg_url", state.settings.hero_bg_url, "image"));
-        appendField(f, "Logo (Text)", el("input", { name: "logo_text", value: state.settings.logo_text || "" }));
-        appendField(f, "Logo-Bild (optional)", pickerField("logo_url", state.settings.logo_url, "image"));
+        f.appendChild(el("h3", {}, "Logo & Marke"));
+        appendField(f, "Logo-Text (Name in der Navigation)", el("input", { name: "logo_text", value: state.settings.logo_text || "", placeholder: "z.B. Weltreise" }));
+        appendField(f, "Logo-Bild (ersetzt das Buchstaben-Symbol)", pickerField("logo_url", state.settings.logo_url, "image"));
 
-        f.appendChild(el("h3", {}, "Farben & Design"));
+        f.appendChild(el("h3", {}, "Bilder"));
+        appendField(f, "Titelbild (Hero-Bild)", pickerField("hero_image_url", state.settings.hero_image_url, "image"));
+        appendField(f, "Hero-Hintergrundbild (überschreibt Titelbild)", pickerField("hero_bg_url", state.settings.hero_bg_url, "image"));
+
+        f.appendChild(el("h3", {}, "Farben"));
         const colorRow = el("div", { class: "color-row" },
             colorField("Hintergrund", "color_bg", state.settings.color_bg || "#141414"),
             colorField("Akzent", "color_accent", state.settings.color_accent || "#e50914"),
+            colorField("Schrift", "color_text", state.settings.color_text || "#ffffff"),
         );
         f.appendChild(colorRow);
-        appendField(f, "Schrift Überschriften", el("input", { name: "font_heading", value: state.settings.font_heading || "" }));
-        appendField(f, "Schrift Fließtext", el("input", { name: "font_body", value: state.settings.font_body || "" }));
 
-        f.appendChild(el("h3", {}, "Footer"));
+        f.appendChild(el("h3", {}, "Schriftarten"));
+        appendField(f, "Schrift Überschriften", fontSelect("font_heading", state.settings.font_heading || "Bebas Neue"));
+        appendField(f, "Schrift Fließtext", fontSelect("font_body", state.settings.font_body || "Inter"));
+
+        f.appendChild(el("h3", {}, "Jahr & Footer"));
+        appendField(f, "Jahr (im Hero angezeigt)", el("input", { name: "year", value: state.settings.year || "2026" }));
         appendField(f, "Footer-Text", el("input", { name: "footer_text", value: state.settings.footer_text || "" }));
 
+        f.appendChild(el("h3", {}, "Social-Media-Links"));
+        const soc = state.settings.socials || {};
+        appendField(f, "Instagram-URL", el("input", { name: "social_instagram", value: soc.instagram || "", placeholder: "https://instagram.com/..." }));
+        appendField(f, "YouTube-URL", el("input", { name: "social_youtube", value: soc.youtube || "", placeholder: "https://youtube.com/@..." }));
+        appendField(f, "TikTok-URL", el("input", { name: "social_tiktok", value: soc.tiktok || "", placeholder: "https://tiktok.com/@..." }));
+        appendField(f, "X (Twitter) URL", el("input", { name: "social_x", value: soc.x || "", placeholder: "https://x.com/..." }));
+        appendField(f, "Eigene Website", el("input", { name: "social_website", value: soc.website || "", placeholder: "https://..." }));
+
         f.appendChild(el("div", { class: "form-actions sticky" },
+            el("a", { href: "/", target: "_blank", class: "btn btn-secondary", "data-testid": "open-preview" }, "Vorschau in neuem Tab"),
             el("button", { type: "submit", class: "btn btn-primary", "data-testid": "save-settings" }, "Alle Einstellungen speichern"),
         ));
         container.appendChild(f);
+    }
+
+    function fontSelect(name, currentValue) {
+        const wrap = el("div", { class: "picker-row" });
+        const select = el("select", { name },
+            el("option", { value: "" }, "— Standard —"),
+            ...GOOGLE_FONTS.map(font => el("option", { value: font, ...(currentValue === font ? { selected: true } : {}) }, font)),
+            el("option", { value: "__custom__" }, "Eigene Schrift..."),
+        );
+        const custom = el("input", { type: "text", name: `${name}_custom`, placeholder: "Google-Font-Name", value: (!GOOGLE_FONTS.includes(currentValue) && currentValue) ? currentValue : "" });
+        custom.style.display = (!GOOGLE_FONTS.includes(currentValue) && currentValue) ? "block" : "none";
+        select.addEventListener("change", () => {
+            if (select.value === "__custom__") {
+                custom.style.display = "block";
+                custom.focus();
+                // Beim Speichern muss der eigene Wert genutzt werden
+                select.dataset.useCustom = "1";
+            } else {
+                custom.style.display = "none";
+                delete select.dataset.useCustom;
+            }
+        });
+        // Custom-Wert übernehmen
+        custom.addEventListener("input", () => { select.dataset.customValue = custom.value; });
+        if (!GOOGLE_FONTS.includes(currentValue) && currentValue) {
+            select.value = "__custom__";
+            select.dataset.useCustom = "1";
+            select.dataset.customValue = currentValue;
+        }
+        wrap.appendChild(select);
+        wrap.appendChild(custom);
+        return wrap;
     }
 
     function colorField(label, name, val) {
@@ -638,11 +704,16 @@
         const data = {};
         for (const el of f.querySelectorAll("input,textarea,select")) {
             if (!el.name) continue;
-            if (el.name.endsWith("_text")) continue; // color text mirror
+            // Nur die Hex-Spiegel-Inputs der Color-Picker überspringen (identifiziert per Klasse)
+            if (el.classList && el.classList.contains("color-text")) continue;
+            if (el.name.endsWith("_custom")) continue; // Font custom mirror
             if (el.type === "checkbox") data[el.name] = el.checked ? "on" : "";
+            else if (el.tagName === "SELECT" && el.dataset.useCustom === "1") {
+                data[el.name] = (el.dataset.customValue || "").trim();
+            }
             else data[el.name] = el.value;
         }
-        // Merge color fields (text mirror overrides picker if valid)
+        // Color-Picker (name ohne _text-Suffix) direkt übernehmen
         f.querySelectorAll('input[type="color"]').forEach(c => { data[c.name] = c.value; });
         return data;
     }

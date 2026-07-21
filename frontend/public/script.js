@@ -107,22 +107,100 @@
             document.documentElement.style.setProperty("--accent", s.color_accent);
             document.documentElement.style.setProperty("--accent-hover", s.color_accent);
         }
+        if (s.color_text) {
+            document.documentElement.style.setProperty("--text", s.color_text);
+        }
+        // Schriftarten (mit dynamischem Google-Font-Loader)
+        if (s.font_heading) {
+            loadGoogleFont(s.font_heading);
+            document.documentElement.style.setProperty("--font-heading", `"${s.font_heading}", "Bebas Neue", system-ui, sans-serif`);
+        }
+        if (s.font_body) {
+            loadGoogleFont(s.font_body);
+            document.documentElement.style.setProperty("--font-body", `"${s.font_body}", "Inter", system-ui, sans-serif`);
+        }
+        // Jahr im Hero
+        if (s.year) {
+            const yr = $("#hero-year"); if (yr) yr.textContent = s.year;
+            try { localStorage.setItem("weltreise:year", s.year); } catch {}
+        }
         // Texte
-        if (s.series_title) { const el = $("#hero-title"); if (el) el.textContent = s.series_title; document.title = `${s.series_title} – Streaming`; }
+        if (s.series_title) {
+            const el = $("#hero-title"); if (el) el.textContent = s.series_title;
+            document.title = `${s.series_title} – Streaming`;
+            // Cache für nächste Intro-Animation
+            try { localStorage.setItem("weltreise:series_title", s.series_title); } catch {}
+        }
         if (s.hero_subtitle) { const el = $("#hero-season"); if (el) el.textContent = s.hero_subtitle; }
         if (s.hero_description) { const el = $("#hero-description"); if (el) el.textContent = s.hero_description; }
-        if (s.logo_text) $$(".logo-text").forEach(x => x.textContent = s.logo_text);
-        if (s.footer_text) { const el = $(".footer-inner > div"); if (el) el.textContent = s.footer_text; }
-        // Hero-Bild als Overlay
-        if (s.hero_bg_url) {
+        // Logo (Text + optionales Bild)
+        if (s.logo_text) {
+            $$(".logo-text").forEach(x => x.textContent = s.logo_text);
+            $$(".logo-mark:not(.has-image)").forEach(x => x.textContent = s.logo_text.charAt(0).toUpperCase());
+        }
+        if (s.logo_url) {
+            $$(".nav-logo").forEach(link => {
+                const mark = link.querySelector(".logo-mark");
+                if (mark) {
+                    mark.classList.add("has-image");
+                    mark.innerHTML = "";
+                    let img = mark.querySelector("img");
+                    if (!img) { img = document.createElement("img"); mark.appendChild(img); }
+                    img.src = s.logo_url;
+                    img.alt = s.logo_text || "Logo";
+                }
+            });
+        }
+        // Footer
+        if (s.footer_text) { const el = $(".footer-inner > div:first-child"); if (el) el.textContent = s.footer_text; }
+        // Socials in Footer rendern
+        renderSocials(s.socials || {});
+        // Hero-Bild (bg oder image)
+        const heroImg = s.hero_bg_url || s.hero_image_url;
+        if (heroImg) {
             const bd = $("#hero-backdrop");
             if (bd) {
-                bd.style.backgroundImage = `linear-gradient(135deg, rgba(20,5,5,0.5) 0%, rgba(20,20,20,0.7) 60%, rgba(6,17,22,0.8) 100%), url('${s.hero_bg_url}')`;
+                bd.style.backgroundImage = `linear-gradient(135deg, rgba(20,5,5,0.5) 0%, rgba(20,20,20,0.7) 60%, rgba(6,17,22,0.85) 100%), url('${heroImg}')`;
                 bd.style.backgroundSize = "cover";
                 bd.style.backgroundPosition = "center";
+                bd.style.animation = "none";
             }
         }
         $("#hero-episode-count").textContent = `${state.episodes.length} Folgen`;
+    }
+
+    // Lädt Google Font dynamisch nach (idempotent)
+    const _loadedFonts = new Set();
+    function loadGoogleFont(name) {
+        if (!name || _loadedFonts.has(name)) return;
+        _loadedFonts.add(name);
+        // Standard-System-Fonts überspringen
+        const sys = ["Arial","Helvetica","Times","Courier","Georgia","Verdana","system-ui","sans-serif","serif","monospace"];
+        if (sys.some(x => name.toLowerCase().includes(x.toLowerCase()))) return;
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name).replace(/%20/g, "+")}:wght@300;400;500;600;700;800&display=swap`;
+        link.dataset.font = name;
+        document.head.appendChild(link);
+    }
+
+    function renderSocials(socials) {
+        const container = $("#footer-socials");
+        if (!container) return;
+        const items = Object.entries(socials || {}).filter(([, v]) => v && v.trim());
+        if (!items.length) { container.innerHTML = ""; container.hidden = true; return; }
+        container.hidden = false;
+        const icons = {
+            instagram: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>',
+            youtube: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"/><polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"/></svg>',
+            tiktok: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M19.6 6.3a5.5 5.5 0 0 1-3.4-1.2 5.5 5.5 0 0 1-2-3.6h-3v13a2.6 2.6 0 1 1-2.6-2.6c.3 0 .6 0 .8.1V9a5.7 5.7 0 1 0 4.8 5.6V9.2a8.6 8.6 0 0 0 5.4 1.9v-3a5.5 5.5 0 0 1 0 .1z"/></svg>',
+            x: '<svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18.24 2H21l-6.54 7.47L22 22h-6.4l-5.02-6.55L4.78 22H2l7-8L2 2h6.55l4.54 6l5.15-6zm-1.12 18h1.77L7.02 3.9H5.13L17.12 20z"/></svg>',
+            website: '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+        };
+        container.innerHTML = items.map(([k, url]) => {
+            const key = k.toLowerCase();
+            return `<a href="${url}" target="_blank" rel="noopener" class="social-link" aria-label="${k}" data-testid="social-${key}">${icons[key] || icons.website}</a>`;
+        }).join("");
     }
 
     // ---- Filters ----

@@ -17,21 +17,39 @@
         <noscript>Du musst JavaScript aktivieren, um diese App zu nutzen.</noscript>
         <div id="root" style="display:none"></div>
 
-        <!-- Intro-Animation beim Laden der Seite -->
+        <!-- Intro-Animation beim Laden der Seite (dynamisch aus letzter bekannter Serie) -->
         <div id="intro-screen" class="intro-screen" data-testid="intro-screen">
-            <div class="intro-logo">
-                <span class="intro-letter">W</span>
-                <span class="intro-letter">E</span>
-                <span class="intro-letter">L</span>
-                <span class="intro-letter">T</span>
-                <span class="intro-letter">R</span>
-                <span class="intro-letter">E</span>
-                <span class="intro-letter">I</span>
-                <span class="intro-letter">S</span>
-                <span class="intro-letter">E</span>
-            </div>
-            <div class="intro-tagline">Eine Serie · Staffel 1</div>
+            <div class="intro-logo" id="intro-logo"></div>
+            <div class="intro-tagline">Eine Serie · <span id="intro-year">2026</span></div>
         </div>
+        <script>
+            (function () {
+                var cached = "";
+                try { cached = localStorage.getItem("weltreise:series_title") || ""; } catch (_) {}
+                var target = document.getElementById("intro-logo");
+                if (cached && cached.trim().length) {
+                    var chars = Array.from(cached.trim());
+                    chars.forEach(function (ch, i) {
+                        var span = document.createElement("span");
+                        span.className = "intro-letter";
+                        span.style.animationDelay = (0.05 + i * 0.06) + "s";
+                        span.textContent = ch === " " ? "\u00A0" : ch;
+                        target.appendChild(span);
+                    });
+                } else {
+                    // Erster Besuch: dezente 3-Punkte-Ladeanimation statt fester Text
+                    target.classList.add("intro-dots");
+                    target.innerHTML =
+                        '<span class="intro-dot"></span>' +
+                        '<span class="intro-dot"></span>' +
+                        '<span class="intro-dot"></span>';
+                }
+                try {
+                    var year = localStorage.getItem("weltreise:year");
+                    if (year) document.getElementById("intro-year").textContent = year;
+                } catch (_) {}
+            })();
+        </script>
 
         <!-- Navigation -->
         <nav class="navbar" id="navbar" data-testid="main-navbar">
@@ -79,7 +97,7 @@
                     <span class="hero-dot">•</span>
                     <span id="hero-episode-count">18 Folgen</span>
                     <span class="hero-dot">•</span>
-                    <span>2025</span>
+                    <span id="hero-year">2026</span>
                     <span class="hero-dot">•</span>
                     <span class="hero-hd">HD</span>
                 </div>
@@ -241,7 +259,8 @@
 
         <footer class="footer">
             <div class="footer-inner">
-                <div>© 2025 · Meine Weltreise · Eine persönliche Reisedokumentation</div>
+                <div>© 2026 · Meine Weltreise · Eine persönliche Reisedokumentation</div>
+                <div class="footer-socials" id="footer-socials" hidden></div>
                 <div class="footer-sub">Erstellt mit Liebe zum Detail</div>
             </div>
         </footer>

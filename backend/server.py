@@ -147,6 +147,8 @@ class SettingsIn(BaseModel):
     footer_text: Optional[str] = None
     color_bg: Optional[str] = None
     color_accent: Optional[str] = None
+    color_text: Optional[str] = None
+    year: Optional[str] = None
     font_heading: Optional[str] = None
     font_body: Optional[str] = None
     socials: Optional[Dict[str, str]] = None
@@ -613,9 +615,11 @@ async def seed_defaults():
             "hero_bg_url": "",
             "logo_text": "Weltreise",
             "logo_url": "",
-            "footer_text": "© 2025 · Meine Weltreise · Eine persönliche Reisedokumentation",
+            "footer_text": "© 2026 · Meine Weltreise · Eine persönliche Reisedokumentation",
             "color_bg": "#141414",
             "color_accent": "#e50914",
+            "color_text": "#ffffff",
+            "year": "2026",
             "font_heading": "Bebas Neue",
             "font_body": "Inter",
             "socials": {},
