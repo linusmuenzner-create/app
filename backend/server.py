@@ -237,6 +237,23 @@ async def auth_logout(response: Response):
     response.delete_cookie(COOKIE_NAME, path="/")
     return {"ok": True}
 
+# ------------- Public config (no auth) — für Login/Admin-Login-Seite -------------
+@api.get("/config")
+async def public_config():
+    s = await db.settings.find_one({"_id": "singleton"}) or {}
+    return {
+        "series_title": s.get("series_title"),
+        "logo_text": s.get("logo_text"),
+        "logo_url": s.get("logo_url"),
+        "color_bg": s.get("color_bg"),
+        "color_accent": s.get("color_accent"),
+        "color_text": s.get("color_text"),
+        "font_heading": s.get("font_heading"),
+        "font_body": s.get("font_body"),
+        "footer_text": s.get("footer_text"),
+        "year": s.get("year"),
+    }
+
 # ------------- Public content -------------
 @api.get("/content")
 async def get_content(_: dict = Depends(require_role("viewer"))):

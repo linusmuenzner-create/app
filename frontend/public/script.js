@@ -101,6 +101,15 @@
 
     function applyDynamicSettings() {
         const s = state.settings || {};
+        // Design-Cache für Login-Seite (auth.js liest das)
+        try {
+            localStorage.setItem("weltreise:design", JSON.stringify({
+                color_bg: s.color_bg, color_accent: s.color_accent, color_text: s.color_text,
+                logo_text: s.logo_text, logo_url: s.logo_url,
+                font_heading: s.font_heading, font_body: s.font_body,
+                footer_text: s.footer_text, year: s.year, series_title: s.series_title,
+            }));
+        } catch {}
         // Farben
         if (s.color_bg) document.documentElement.style.setProperty("--bg", s.color_bg);
         if (s.color_accent) {
@@ -411,7 +420,7 @@
                 playerHint.innerHTML = ep.video_url
                     ? `⚠️ Video konnte nicht abgespielt werden. Prüfe im Admin-Panel, ob die Datei ein unterstützter Codec ist (H.264/AAC MP4).`
                     : `⚠️ Für diese Episode ist noch kein Video hinterlegt. Öffne den Admin-Bereich, um eines zuzuweisen.`;
-                playerHint.style.background = "rgba(229, 9, 20, 0.85)";
+                playerHint.style.background = "color-mix(in srgb, var(--accent) 85%, transparent)";
                 playerHint.style.color = "#fff";
             }
         };

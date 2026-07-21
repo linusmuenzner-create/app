@@ -127,7 +127,7 @@
     // ---- Dashboard ----
     function viewDashboard(container) {
         const stats = [
-            { label: "Episoden", value: state.episodes.length, color: "#e50914" },
+            { label: "Episoden", value: state.episodes.length, color: "var(--accent)" },
             { label: "Staffeln", value: state.seasons.length, color: "#0077b6" },
             { label: "Länder", value: state.countries.length, color: "#2a9d8f" },
             { label: "Mediendateien", value: state.media.length, color: "#f4a261" },

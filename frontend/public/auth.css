@@ -19,7 +19,7 @@
     position: absolute;
     inset: 0;
     background:
-        radial-gradient(ellipse at 30% 20%, rgba(229, 9, 20, 0.25), transparent 55%),
+        radial-gradient(ellipse at 30% 20%, color-mix(in srgb, var(--accent) 25%, transparent), transparent 55%),
         radial-gradient(ellipse at 80% 90%, rgba(20, 60, 100, 0.4), transparent 55%),
         linear-gradient(135deg, #150606 0%, #0b0b0b 55%, #061018 100%);
     z-index: 0;
@@ -80,8 +80,8 @@
     letter-spacing: 3px;
     text-transform: uppercase;
     padding: 5px 10px;
-    background: rgba(229, 9, 20, 0.12);
-    border: 1px solid rgba(229, 9, 20, 0.3);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
     border-radius: 4px;
     margin-bottom: 22px;
 }
@@ -130,7 +130,7 @@
 .auth-input-wrap:focus-within {
     border-color: var(--accent);
     background: rgba(0, 0, 0, 0.4);
-    box-shadow: 0 0 0 3px rgba(229, 9, 20, 0.15);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .auth-input {
@@ -161,11 +161,11 @@
 .auth-eye:hover { color: #fff; }
 
 .auth-error {
-    color: #ff5560;
+    color: color-mix(in srgb, var(--accent) 70%, white);
     font-size: 13px;
     padding: 10px 14px;
-    background: rgba(229, 9, 20, 0.08);
-    border: 1px solid rgba(229, 9, 20, 0.25);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
     border-radius: 6px;
     margin-top: 4px;
     animation: fadeIn 0.3s ease;
@@ -183,7 +183,7 @@
 .auth-submit:hover:not(:disabled) {
     background: var(--accent-hover);
     transform: translateY(-1px);
-    box-shadow: 0 10px 24px rgba(229, 9, 20, 0.4);
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--accent) 40%, transparent);
 }
 .auth-submit:disabled { cursor: wait; }
 

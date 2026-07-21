@@ -121,4 +121,59 @@
     }
 
     window.AuthGuard = { authMe, submitAccess, submitAdmin, logout, mountAccessForm, mountAdminForm, requireViewer, API };
+
+    // Public config beim Laden anwenden (Farben, Logo, Titel) auf Login-Seiten
+    async function applyPublicConfig() {
+        // Zuerst gecachte Werte (schnell, ohne Netzwerk)
+        try {
+            const cached = JSON.parse(localStorage.getItem("weltreise:design") || "null");
+            if (cached) applyDesign(cached);
+        } catch {}
+        // Dann live aus der API (aktuell)
+        try {
+            const r = await fetch(`${API}/config`);
+            if (r.ok) {
+                const cfg = await r.json();
+                applyDesign(cfg);
+                try { localStorage.setItem("weltreise:design", JSON.stringify(cfg)); } catch {}
+            }
+        } catch {}
+    }
+
+    function applyDesign(cfg) {
+        const root = document.documentElement.style;
+        if (cfg.color_bg) root.setProperty("--bg", cfg.color_bg);
+        if (cfg.color_accent) {
+            root.setProperty("--accent", cfg.color_accent);
+            root.setProperty("--accent-hover", cfg.color_accent);
+        }
+        if (cfg.color_text) root.setProperty("--text", cfg.color_text);
+        if (cfg.font_heading) root.setProperty("--font-heading", `"${cfg.font_heading}", "Bebas Neue", system-ui, sans-serif`);
+        if (cfg.font_body) root.setProperty("--font-body", `"${cfg.font_body}", "Inter", system-ui, sans-serif`);
+        // Logo
+        document.querySelectorAll(".logo-text").forEach(el => {
+            if (cfg.logo_text) el.textContent = cfg.logo_text;
+        });
+        document.querySelectorAll(".nav-logo").forEach(link => {
+            const mark = link.querySelector(".logo-mark");
+            if (!mark) return;
+            if (cfg.logo_url) {
+                mark.classList.add("has-image");
+                mark.innerHTML = "";
+                const img = document.createElement("img");
+                img.src = cfg.logo_url;
+                img.alt = cfg.logo_text || "Logo";
+                mark.appendChild(img);
+            } else if (cfg.logo_text) {
+                mark.textContent = cfg.logo_text.charAt(0).toUpperCase();
+            }
+        });
+    }
+
+    // Sofort ausführen (auf jeder Seite die auth.js lädt)
+    if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", applyPublicConfig);
+    } else {
+        applyPublicConfig();
+    }
 })();
