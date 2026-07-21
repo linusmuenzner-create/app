@@ -364,37 +364,53 @@ def safe_filename(name: str) -> str:
     name = re.sub(r"[^a-zA-Z0-9._-]", "_", name)
     return name[:100] or f"file_{new_id()}"
 
-@api.post("/admin/upload")
-async def admin_upload(file: UploadFile = File(...), kind: str = Form("auto"), _: dict = Depends(require_role("admin"))):
-    ctype = (file.content_type or "").lower()
+def _resolve_kind(kind: str, ctype: str) -> str:
+    """Ermittelt den Upload-Kind (video/image) aus dem Content-Type oder validiert den angegebenen."""
     if kind == "auto":
-        if ctype in ALLOWED_VIDEO: kind = "video"
-        elif ctype in ALLOWED_IMAGE: kind = "image"
-        else: raise HTTPException(415, f"Nicht unterstützter Dateityp: {ctype}")
-    else:
-        if kind == "video" and ctype not in ALLOWED_VIDEO:
-            raise HTTPException(415, f"Kein Video: {ctype}")
-        if kind == "image" and ctype not in ALLOWED_IMAGE:
-            raise HTTPException(415, f"Kein Bild: {ctype}")
-    subdir = "videos" if kind == "video" else "images"
-    fname = f"{new_id()}_{safe_filename(file.filename or 'upload')}"
-    dst = UPLOAD_DIR / subdir / fname
-    # size check while streaming
-    max_bytes = MAX_UPLOAD_MB * 1024 * 1024
+        if ctype in ALLOWED_VIDEO:
+            return "video"
+        if ctype in ALLOWED_IMAGE:
+            return "image"
+        raise HTTPException(415, f"Nicht unterstützter Dateityp: {ctype}")
+    if kind == "video" and ctype not in ALLOWED_VIDEO:
+        raise HTTPException(415, f"Kein Video: {ctype}")
+    if kind == "image" and ctype not in ALLOWED_IMAGE:
+        raise HTTPException(415, f"Kein Bild: {ctype}")
+    return kind
+
+async def _stream_to_disk(file: UploadFile, dst: Path, max_bytes: int) -> int:
+    """Streamt file → dst in 1MB Chunks, bricht bei max_bytes ab. Gibt Bytes zurück."""
     total = 0
     with dst.open("wb") as out:
         while True:
             chunk = await file.read(1024 * 1024)
-            if not chunk: break
+            if not chunk:
+                break
             total += len(chunk)
             if total > max_bytes:
                 out.close()
                 dst.unlink(missing_ok=True)
                 raise HTTPException(413, f"Datei zu groß (max {MAX_UPLOAD_MB} MB)")
             out.write(chunk)
+    return total
+
+async def _record_media(kind: str, url: str, name: str, size: int) -> dict:
+    doc = {
+        "id": new_id(), "kind": kind, "url": url, "name": name, "size": size,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.media.insert_one(doc)
+    return doc
+
+@api.post("/admin/upload")
+async def admin_upload(file: UploadFile = File(...), kind: str = Form("auto"), _: dict = Depends(require_role("admin"))):
+    kind = _resolve_kind(kind, (file.content_type or "").lower())
+    subdir = "videos" if kind == "video" else "images"
+    fname = f"{new_id()}_{safe_filename(file.filename or 'upload')}"
+    dst = UPLOAD_DIR / subdir / fname
+    total = await _stream_to_disk(file, dst, MAX_UPLOAD_MB * 1024 * 1024)
     url = f"/api/uploads/{subdir}/{fname}"
-    media = {"id": new_id(), "kind": kind, "url": url, "name": file.filename, "size": total, "created_at": datetime.now(timezone.utc).isoformat()}
-    await db.media.insert_one(media)
+    media = await _record_media(kind, url, file.filename or "upload", total)
     return {"url": url, "kind": kind, "size": total, "id": media["id"]}
 
 # ---- Chunked Upload (für große Dateien > Ingress-Body-Limit) ----
@@ -406,6 +422,57 @@ _TMP_UPLOADS.mkdir(parents=True, exist_ok=True)
 def _valid_upload_id(uid: str) -> bool:
     return bool(re.fullmatch(r"[a-zA-Z0-9_-]{6,64}", uid))
 
+def _validate_chunk_params(upload_id: str, chunk_index: int, total_chunks: int, kind: str, filename: str):
+    if not _valid_upload_id(upload_id):
+        raise HTTPException(400, "Ungültige upload_id")
+    if chunk_index < 0 or chunk_index >= total_chunks or total_chunks <= 0 or total_chunks > 5000:
+        raise HTTPException(400, "Ungültige Chunk-Parameter")
+    if kind not in ("video", "image"):
+        raise HTTPException(400, "kind muss 'video' oder 'image' sein")
+    # Dateiname muss einen Basis-Namen vor der Endung haben (z.B. "video.mp4", nicht nur ".mp4")
+    stem = Path(filename).stem.strip()
+    if not stem:
+        raise HTTPException(400, "Dateiname ohne Basis-Namen nicht erlaubt")
+    ext = Path(filename).suffix.lower()
+    allowed = ALLOWED_VIDEO_EXT if kind == "video" else ALLOWED_IMAGE_EXT
+    if ext not in allowed:
+        raise HTTPException(415, f"Dateiendung {ext} nicht erlaubt")
+
+async def _write_chunk(file: UploadFile, chunk_path: Path, existing_size: int, max_bytes: int, session_dir: Path) -> int:
+    written = 0
+    with chunk_path.open("wb") as out:
+        while True:
+            data = await file.read(1024 * 1024)
+            if not data:
+                break
+            written += len(data)
+            if existing_size + written > max_bytes:
+                out.close()
+                shutil.rmtree(session_dir, ignore_errors=True)
+                raise HTTPException(413, f"Datei überschreitet Limit von {MAX_UPLOAD_MB} MB")
+            out.write(data)
+    return written
+
+def _assemble_chunks(session_dir: Path, total_chunks: int, subdir: str, filename: str):
+    chunks = sorted(session_dir.glob("chunk_*"))
+    if len(chunks) != total_chunks:
+        shutil.rmtree(session_dir, ignore_errors=True)
+        raise HTTPException(400, f"Fehlende Chunks: erwartet {total_chunks}, gefunden {len(chunks)}")
+    final_name = f"{new_id()}_{safe_filename(filename)}"
+    dst = UPLOAD_DIR / subdir / final_name
+    total_size = 0
+    with dst.open("wb") as out:
+        for cp in chunks:
+            with cp.open("rb") as inp:
+                while True:
+                    d = inp.read(1024 * 1024)
+                    if not d:
+                        break
+                    total_size += len(d)
+                    out.write(d)
+    shutil.rmtree(session_dir, ignore_errors=True)
+    return final_name, total_size
+
 @api.post("/admin/upload-chunk")
 async def admin_upload_chunk(
     file: UploadFile = File(...),
@@ -416,73 +483,25 @@ async def admin_upload_chunk(
     kind: str = Form(...),
     _: dict = Depends(require_role("admin")),
 ):
-    if not _valid_upload_id(upload_id):
-        raise HTTPException(400, "Ungültige upload_id")
-    if chunk_index < 0 or chunk_index >= total_chunks or total_chunks <= 0 or total_chunks > 5000:
-        raise HTTPException(400, "Ungültige Chunk-Parameter")
-    if kind not in ("video", "image"):
-        raise HTTPException(400, "kind muss 'video' oder 'image' sein")
-
-    ext = Path(filename).suffix.lower()
-    allowed = ALLOWED_VIDEO_EXT if kind == "video" else ALLOWED_IMAGE_EXT
-    if ext not in allowed:
-        raise HTTPException(415, f"Dateiendung {ext} nicht erlaubt")
+    _validate_chunk_params(upload_id, chunk_index, total_chunks, kind, filename)
 
     session_dir = _TMP_UPLOADS / upload_id
     session_dir.mkdir(parents=True, exist_ok=True)
-
-    # Prüfe kumulative Größe gegen MAX_UPLOAD_MB
     max_bytes = MAX_UPLOAD_MB * 1024 * 1024
-    existing_size = sum(p.stat().st_size for p in session_dir.glob("chunk_*")) if session_dir.exists() else 0
+    existing_size = sum(p.stat().st_size for p in session_dir.glob("chunk_*"))
 
     chunk_path = session_dir / f"chunk_{chunk_index:06d}"
-    written = 0
-    with chunk_path.open("wb") as out:
-        while True:
-            data = await file.read(1024 * 1024)
-            if not data:
-                break
-            written += len(data)
-            if existing_size + written > max_bytes:
-                out.close()
-                # Aufräumen
-                shutil.rmtree(session_dir, ignore_errors=True)
-                raise HTTPException(413, f"Datei überschreitet Limit von {MAX_UPLOAD_MB} MB")
-            out.write(data)
+    written = await _write_chunk(file, chunk_path, existing_size, max_bytes, session_dir)
 
-    # Letzter Chunk? -> Zusammensetzen
-    if chunk_index + 1 == total_chunks:
-        # Verifiziere Vollständigkeit
-        chunks = sorted(session_dir.glob("chunk_*"))
-        if len(chunks) != total_chunks:
-            shutil.rmtree(session_dir, ignore_errors=True)
-            raise HTTPException(400, f"Fehlende Chunks: erwartet {total_chunks}, gefunden {len(chunks)}")
+    is_last = chunk_index + 1 == total_chunks
+    if not is_last:
+        return {"complete": False, "chunk_index": chunk_index, "received_bytes": written}
 
-        subdir = "videos" if kind == "video" else "images"
-        final_name = f"{new_id()}_{safe_filename(filename)}"
-        dst = UPLOAD_DIR / subdir / final_name
-        total_size = 0
-        with dst.open("wb") as out:
-            for cp in chunks:
-                with cp.open("rb") as inp:
-                    while True:
-                        d = inp.read(1024 * 1024)
-                        if not d:
-                            break
-                        total_size += len(d)
-                        out.write(d)
-        shutil.rmtree(session_dir, ignore_errors=True)
-
-        url = f"/api/uploads/{subdir}/{final_name}"
-        media = {
-            "id": new_id(), "kind": kind, "url": url,
-            "name": filename, "size": total_size,
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
-        await db.media.insert_one(media)
-        return {"complete": True, "url": url, "kind": kind, "size": total_size, "id": media["id"]}
-
-    return {"complete": False, "chunk_index": chunk_index, "received_bytes": written}
+    subdir = "videos" if kind == "video" else "images"
+    final_name, total_size = _assemble_chunks(session_dir, total_chunks, subdir, filename)
+    url = f"/api/uploads/{subdir}/{final_name}"
+    media = await _record_media(kind, url, filename, total_size)
+    return {"complete": True, "url": url, "kind": kind, "size": total_size, "id": media["id"]}
 
 @api.post("/admin/upload-chunk-abort")
 async def admin_upload_chunk_abort(upload_id: str = Form(...), _: dict = Depends(require_role("admin"))):
@@ -534,72 +553,80 @@ def _guess_mime(name: str) -> str:
     m, _ = mimetypes.guess_type(name)
     return m or "application/octet-stream"
 
-@api.head("/uploads/{subdir}/{fname}")
-async def head_upload(subdir: str, fname: str, request: Request):
+def _check_upload_auth(request: Request, subdir: str, fname: str) -> Path:
+    """Prüft Auth und resolved den finalen Dateipfad. Raises passende Exceptions."""
     tok = get_token(request)
     if not tok or not decode_token(tok):
         raise HTTPException(401, "Not authenticated")
     if subdir not in ("videos", "images"):
         raise HTTPException(404, "Not found")
-    path = UPLOAD_DIR / subdir / fname
+    # Path-Traversal-Schutz: fname darf keine Pfad-Trenner enthalten und muss innerhalb UPLOAD_DIR bleiben
+    if "/" in fname or "\\" in fname or ".." in fname:
+        raise HTTPException(404, "Not found")
+    base = (UPLOAD_DIR / subdir).resolve()
+    path = (base / fname).resolve()
+    try:
+        path.relative_to(base)
+    except ValueError:
+        raise HTTPException(404, "Not found")
     if not path.exists() or not path.is_file():
         raise HTTPException(404, "Datei nicht gefunden")
-    size = path.stat().st_size
+    return path
+
+def _parse_range(range_header: str, file_size: int):
+    """Parsed einen HTTP Range-Header. Gibt (start, end) oder None zurück."""
+    if not range_header:
+        return None
+    m = re.match(r"bytes=(\d+)-(\d*)", range_header)
+    if not m:
+        return None
+    start = int(m.group(1))
+    end = int(m.group(2)) if m.group(2) else file_size - 1
+    return (start, end)
+
+def _iter_file_range(path: Path, start: int, length: int, chunk_size: int = 1024 * 1024):
+    def gen():
+        with path.open("rb") as f:
+            f.seek(start)
+            remaining = length
+            while remaining > 0:
+                chunk = f.read(min(chunk_size, remaining))
+                if not chunk:
+                    break
+                remaining -= len(chunk)
+                yield chunk
+    return gen()
+
+@api.head("/uploads/{subdir}/{fname}")
+async def head_upload(subdir: str, fname: str, request: Request):
+    path = _check_upload_auth(request, subdir, fname)
     return Response(status_code=200, headers={
-        "Content-Length": str(size),
+        "Content-Length": str(path.stat().st_size),
         "Content-Type": _guess_mime(fname),
         "Accept-Ranges": "bytes",
     })
 
 @api.get("/uploads/{subdir}/{fname}")
 async def serve_upload(subdir: str, fname: str, request: Request):
-    tok = get_token(request)
-    if not tok or not decode_token(tok):
-        raise HTTPException(401, "Not authenticated")
-    if subdir not in ("videos", "images"):
-        raise HTTPException(404, "Not found")
-    path = UPLOAD_DIR / subdir / fname
-    if not path.exists() or not path.is_file():
-        raise HTTPException(404, "Datei nicht gefunden")
-
+    path = _check_upload_auth(request, subdir, fname)
     file_size = path.stat().st_size
     mime = _guess_mime(fname)
-    range_header = request.headers.get("range")
 
-    # Kein Range-Header: ganze Datei mit Accept-Ranges
-    if not range_header:
+    parsed = _parse_range(request.headers.get("range"), file_size)
+    if parsed is None:
         return FileResponse(str(path), media_type=mime, headers={"Accept-Ranges": "bytes"})
 
-    # Range parsen: "bytes=start-end" oder "bytes=start-"
-    m = re.match(r"bytes=(\d+)-(\d*)", range_header)
-    if not m:
-        return FileResponse(str(path), media_type=mime, headers={"Accept-Ranges": "bytes"})
-
-    start = int(m.group(1))
-    end = int(m.group(2)) if m.group(2) else file_size - 1
+    start, end = parsed
     if start >= file_size or end >= file_size or start > end:
         return Response(status_code=416, headers={"Content-Range": f"bytes */{file_size}"})
 
     length = end - start + 1
-    CHUNK = 1024 * 1024
-
-    def iter_range():
-        with path.open("rb") as f:
-            f.seek(start)
-            remaining = length
-            while remaining > 0:
-                chunk = f.read(min(CHUNK, remaining))
-                if not chunk:
-                    break
-                remaining -= len(chunk)
-                yield chunk
-
     headers = {
         "Content-Range": f"bytes {start}-{end}/{file_size}",
         "Accept-Ranges": "bytes",
         "Content-Length": str(length),
     }
-    return StreamingResponse(iter_range(), status_code=206, media_type=mime, headers=headers)
+    return StreamingResponse(_iter_file_range(path, start, length), status_code=206, media_type=mime, headers=headers)
 
 # ------------- Health -------------
 @api.get("/")
@@ -607,77 +634,90 @@ async def root():
     return {"ok": True, "app": "Meine Weltreise"}
 
 # ------------- Startup: seed & indexes -------------
+DEFAULT_SETTINGS = {
+    "_id": "singleton",
+    "series_title": "Meine Weltreise",
+    "season_default_name": "Staffel 1",
+    "hero_subtitle": "Staffel 1",
+    "hero_description": "Begleite mich auf meiner Reise um die Welt. Jede Episode zeigt eine weitere Woche voller Abenteuer, neuer Kulturen und unvergesslicher Erinnerungen.",
+    "hero_image_url": "",
+    "hero_bg_url": "",
+    "logo_text": "Weltreise",
+    "logo_url": "",
+    "footer_text": "© 2026 · Meine Weltreise · Eine persönliche Reisedokumentation",
+    "color_bg": "#141414",
+    "color_accent": "#e50914",
+    "color_text": "#ffffff",
+    "year": "2026",
+    "font_heading": "Bebas Neue",
+    "font_body": "Inter",
+    "socials": {},
+}
+DEFAULT_COUNTRIES = [("Australien", "🇦🇺"), ("Indonesien", "🇮🇩"), ("Philippinen", "🇵🇭")]
+
+async def _seed_credentials():
+    if await db.credentials.find_one({"_id": "singleton"}):
+        return
+    await db.credentials.insert_one({
+        "_id": "singleton",
+        "access_code_hash": hash_pw(INITIAL_ACCESS_CODE),
+        "admin_password_hash": hash_pw(INITIAL_ADMIN_PASSWORD),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    logger.info("Seeded credentials.")
+
+async def _seed_settings():
+    if await db.settings.find_one({"_id": "singleton"}):
+        return
+    await db.settings.insert_one(dict(DEFAULT_SETTINGS))
+    logger.info("Seeded settings.")
+
+async def _seed_countries():
+    if await db.countries.count_documents({}) > 0:
+        return
+    for name, flag in DEFAULT_COUNTRIES:
+        await db.countries.insert_one({"id": new_id(), "name": name, "flag_emoji": flag})
+
+def _episode_from_json(ep: dict, index: int, season_id: str) -> dict:
+    return {
+        "id": new_id(),
+        "season_id": season_id,
+        "number": ep.get("number", index + 1),
+        "title": ep.get("title", ""),
+        "description": ep.get("description", ""),
+        "long_description": ep.get("longDescription", ""),
+        "location": ep.get("location", ""),
+        "country": ep.get("country", ""),
+        "date": ep.get("date", ""),
+        "duration": ep.get("duration", 0),
+        "duration_seconds": ep.get("durationSeconds") or (ep.get("duration", 0) * 60),
+        "thumbnail_url": "",
+        "video_url": "",
+        "highlights": ep.get("highlights", []),
+        "travel": ep.get("travel", {}),
+        "hidden": False,
+        "order": index,
+    }
+
+async def _seed_seasons_and_episodes():
+    if await db.seasons.count_documents({}) > 0:
+        return
+    season_id = new_id()
+    await db.seasons.insert_one({"id": season_id, "name": "Staffel 1", "order": 0, "hidden": False})
+    import json
+    default_json = Path("/app/frontend/public/data/episodes.json")
+    if not default_json.exists():
+        return
+    data = json.loads(default_json.read_text(encoding="utf-8"))
+    for i, ep in enumerate(data.get("episodes", [])):
+        await db.episodes.insert_one(_episode_from_json(ep, i, season_id))
+    logger.info(f"Seeded {len(data.get('episodes', []))} episodes.")
+
 async def seed_defaults():
-    # Credentials singleton
-    creds = await db.credentials.find_one({"_id": "singleton"})
-    if not creds:
-        await db.credentials.insert_one({
-            "_id": "singleton",
-            "access_code_hash": hash_pw(INITIAL_ACCESS_CODE),
-            "admin_password_hash": hash_pw(INITIAL_ADMIN_PASSWORD),
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-        logger.info("Seeded credentials.")
-
-    # Settings singleton
-    sett = await db.settings.find_one({"_id": "singleton"})
-    if not sett:
-        await db.settings.insert_one({
-            "_id": "singleton",
-            "series_title": "Meine Weltreise",
-            "season_default_name": "Staffel 1",
-            "hero_subtitle": "Staffel 1",
-            "hero_description": "Begleite mich auf meiner Reise um die Welt. Jede Episode zeigt eine weitere Woche voller Abenteuer, neuer Kulturen und unvergesslicher Erinnerungen.",
-            "hero_image_url": "",
-            "hero_bg_url": "",
-            "logo_text": "Weltreise",
-            "logo_url": "",
-            "footer_text": "© 2026 · Meine Weltreise · Eine persönliche Reisedokumentation",
-            "color_bg": "#141414",
-            "color_accent": "#e50914",
-            "color_text": "#ffffff",
-            "year": "2026",
-            "font_heading": "Bebas Neue",
-            "font_body": "Inter",
-            "socials": {},
-        })
-        logger.info("Seeded settings.")
-
-    # Countries
-    if await db.countries.count_documents({}) == 0:
-        for c in [("Australien", "🇦🇺"), ("Indonesien", "🇮🇩"), ("Philippinen", "🇵🇭")]:
-            await db.countries.insert_one({"id": new_id(), "name": c[0], "flag_emoji": c[1]})
-
-    # Default season + 18 episodes if empty
-    if await db.seasons.count_documents({}) == 0:
-        season_id = new_id()
-        await db.seasons.insert_one({"id": season_id, "name": "Staffel 1", "order": 0, "hidden": False})
-        # Load bundled default episodes (from public/data/episodes.json)
-        import json
-        default_json = Path("/app/frontend/public/data/episodes.json")
-        if default_json.exists():
-            data = json.loads(default_json.read_text(encoding="utf-8"))
-            for i, ep in enumerate(data.get("episodes", [])):
-                await db.episodes.insert_one({
-                    "id": new_id(),
-                    "season_id": season_id,
-                    "number": ep.get("number", i + 1),
-                    "title": ep.get("title", ""),
-                    "description": ep.get("description", ""),
-                    "long_description": ep.get("longDescription", ""),
-                    "location": ep.get("location", ""),
-                    "country": ep.get("country", ""),
-                    "date": ep.get("date", ""),
-                    "duration": ep.get("duration", 0),
-                    "duration_seconds": ep.get("durationSeconds") or (ep.get("duration", 0) * 60),
-                    "thumbnail_url": "",  # user will upload
-                    "video_url": "",
-                    "highlights": ep.get("highlights", []),
-                    "travel": ep.get("travel", {}),
-                    "hidden": False,
-                    "order": i,
-                })
-            logger.info(f"Seeded {len(data.get('episodes', []))} episodes.")
+    await _seed_credentials()
+    await _seed_settings()
+    await _seed_countries()
+    await _seed_seasons_and_episodes()
 
 # ------------- CORS & mount -------------
 app.include_router(api)

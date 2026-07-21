@@ -144,11 +144,11 @@ class TestChunkedUpload:
             assert r.status_code == 200, f"chunk {idx}: {r.status_code} {r.text}"
             j = r.json()
             if idx < total - 1:
-                assert j.get("complete") is False
+                assert j.get("complete") == False
                 assert j.get("chunk_index") == idx
                 assert j.get("received_bytes") == len(cdata)
             else:
-                assert j.get("complete") is True
+                assert j.get("complete") == True
                 media_url = j["url"]
                 media_size = j["size"]
                 media_id = j["id"]

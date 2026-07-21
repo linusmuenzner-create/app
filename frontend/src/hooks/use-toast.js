@@ -143,7 +143,9 @@ function useToast() {
         listeners.splice(index, 1)
       }
     };
-  }, [state])
+    // Subscribe once on mount; setState identity is stable across renders.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   return {
     ...state,
