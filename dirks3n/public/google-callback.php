@@ -57,12 +57,12 @@ function h(string $s): string
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dirks3n · Fitbit</title>
 <style>
-  body { margin:0; min-height:100vh; display:grid; place-items:center; background:#07080a; color:#f4f6f8; font:16px/1.5 -apple-system, system-ui, sans-serif; padding:24px; box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:grid; place-items:center; background:#f4f5f7; color:#0e1116; font:16px/1.5 -apple-system, system-ui, sans-serif; padding:24px; box-sizing:border-box; }
   main { max-width:420px; text-align:center; }
   .badge { width:64px; height:64px; border-radius:20px; display:grid; place-items:center; margin:0 auto 16px; font-size:30px; font-weight:700; }
-  .ok { background:rgba(198,244,50,.14); color:#c6f432; } .err { background:rgba(255,107,107,.14); color:#ff6b6b; }
-  h1 { font-size:22px; margin:0 0 8px; } p { color:#a3abb8; }
-  a { display:inline-block; margin-top:16px; padding:13px 22px; border-radius:14px; background:#c6f432; color:#0b0d10; font-weight:700; text-decoration:none; }
+  .ok { background:#c6f432; color:#0e1116; } .err { background:#fdecec; color:#d22d2d; }
+  h1 { font-size:22px; margin:0 0 8px; } p { color:#4a5260; }
+  a { display:inline-block; margin-top:16px; padding:13px 22px; border-radius:14px; background:#c6f432; color:#0e1116; font-weight:700; text-decoration:none; }
 </style>
 </head>
 <body><main>

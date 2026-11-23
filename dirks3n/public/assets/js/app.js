@@ -10,10 +10,10 @@
 
   // Datenreihen-Farben (validiert für dunklen Hintergrund) + Status
   const C = {
-    s1: '#2a9be0', s2: '#78a61c', s3: '#8c79f0', s4: '#e2702f',
-    lime: '#c6f432', cyan: '#4cc9f0',
-    text: '#a3abb8', muted: '#6b7380', grid: 'rgba(255,255,255,0.06)', surface: '#101216',
-    good: '#a6e22e', ok: '#4cc9f0', warning: '#f5b642', critical: '#ff6b6b',
+    s1: '#1f7fd1', s2: '#5e8e12', s3: '#7b61e8', s4: '#d9621f',
+    lime: '#9bd60a', cyan: '#2bb3d6',
+    text: '#4a5260', muted: '#868e9b', grid: 'rgba(15,23,42,0.07)', surface: '#ffffff',
+    good: '#3b7d0c', ok: '#0e7fb0', warning: '#a96300', critical: '#d22d2d',
   };
 
   const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -91,11 +91,11 @@
   const CAT_ICON = { strength: 'dumbbell', cardio: 'run', hiit: 'bolt', mobility: 'stretch', walk: 'walk', other: 'pulse' };
 
   function statusOf(score) {
-    if (score == null) return { cls: 'none', icon: 'dash', grad: ['#3a3f48', '#3a3f48'], glow: 'rgba(255,255,255,.04)' };
-    if (score >= 75) return { cls: 'good', icon: 'check', grad: [C.cyan, C.lime], glow: 'rgba(198,244,50,.18)' };
-    if (score >= 60) return { cls: 'ok', icon: 'check', grad: ['#2a9be0', C.cyan], glow: 'rgba(76,201,240,.16)' };
-    if (score >= 45) return { cls: 'warning', icon: 'warn', grad: ['#e2702f', C.warning], glow: 'rgba(245,182,66,.15)' };
-    return { cls: 'critical', icon: 'warn', grad: ['#c2410c', C.critical], glow: 'rgba(255,107,107,.15)' };
+    if (score == null) return { cls: 'none', icon: 'dash', grad: ['#cfd4dc', '#cfd4dc'], glow: 'rgba(15,23,42,.03)' };
+    if (score >= 75) return { cls: 'good', icon: 'check', grad: [C.cyan, C.lime], glow: 'rgba(198,244,50,.35)' };
+    if (score >= 60) return { cls: 'ok', icon: 'check', grad: ['#1f7fd1', C.cyan], glow: 'rgba(43,179,214,.22)' };
+    if (score >= 45) return { cls: 'warning', icon: 'warn', grad: ['#d9621f', '#f0a020'], glow: 'rgba(240,160,32,.2)' };
+    return { cls: 'critical', icon: 'warn', grad: ['#b42318', '#ef4444'], glow: 'rgba(239,68,68,.16)' };
   }
 
   function greeting() {
@@ -216,7 +216,7 @@
       ${d.hr_intraday && d.hr_intraday.length ? `<section class="card fade-in">
         <div class="card-head"><div class="card-title">${ico('pulse', 'sm')}Puls ${isToday ? 'heute' : ''}</div><span class="tag">Fitbit · 5 min</span></div>
         <div class="chart-box" style="height:150px"><canvas id="ch-hr" role="img" aria-label="Herzfrequenz-Verlauf"></canvas></div>
-        <div class="legend"><span><i style="background:${C.s1}"></i>Ø je 5 Minuten</span><span><i style="background:rgba(42,155,224,.25)"></i>Spanne min–max</span></div>
+        <div class="legend"><span><i style="background:${C.s1}"></i>Ø je 5 Minuten</span><span><i style="background:rgba(31,127,209,.2)"></i>Spanne min–max</span></div>
       </section>` : ''}
 
       ${d.workouts.length ? `<section class="card fade-in"><div class="card-head"><div class="card-title">${ico('timer', 'sm')}Trainings ${isToday ? 'heute' : ''}</div></div><ul class="list">
@@ -349,7 +349,7 @@
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: '#1a1d23', borderColor: 'rgba(255,255,255,.12)', borderWidth: 1, titleColor: '#f4f6f8', bodyColor: '#a3abb8',
+          backgroundColor: '#0e1116', borderColor: '#0e1116', borderWidth: 1, titleColor: '#ffffff', bodyColor: '#d5d9e0',
           padding: 10, cornerRadius: 12, displayColors: true, boxPadding: 4, usePointStyle: true,
         },
       },
@@ -378,7 +378,7 @@
         labels,
         datasets: [
           { data: rows.map((r) => r[3]), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0.3 },
-          { data: rows.map((r) => r[2]), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: '-1', backgroundColor: 'rgba(42,155,224,.18)', tension: 0.3 },
+          { data: rows.map((r) => r[2]), borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: '-1', backgroundColor: 'rgba(31,127,209,.14)', tension: 0.3 },
           { data: rows.map((r) => r[1]), borderColor: C.s1, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, pointHoverBackgroundColor: C.s1, pointHoverBorderColor: C.surface, pointHoverBorderWidth: 2, tension: 0.3, fill: false },
         ],
       },
@@ -487,7 +487,7 @@
   function legendFor(c) {
     const items = c.type === 'sleep' ? [['Tief', C.s1], ['Kern/Leicht', C.s2], ['REM', C.s3]]
       : c.type === 'kcal' ? [['Aktiv', C.s1], ['Grundumsatz', C.s2]]
-      : c.type === 'hr' ? [['Ø pro Tag', C.s1], ['Spanne min–max', 'rgba(42,155,224,.3)']]
+      : c.type === 'hr' ? [['Ø pro Tag', C.s1], ['Spanne min–max', 'rgba(31,127,209,.22)']]
       : c.metric === 'hrv' ? [['Tageswert', C.s1], ['7-Tage-Schnitt', C.s2]] : [];
     return items.length ? `<div class="legend">${items.map(([l, col]) => `<span><i style="background:${col}"></i>${l}</span>`).join('')}</div>` : '';
   }
@@ -551,7 +551,7 @@
         type: 'line',
         data: { labels, datasets: [
           { data: g.series.hr_max, borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: false, spanGaps: true, tension: 0.3 },
-          { data: g.series.hr_min, borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: '-1', backgroundColor: 'rgba(42,155,224,.16)', spanGaps: true, tension: 0.3 },
+          { data: g.series.hr_min, borderWidth: 0, pointRadius: 0, pointHoverRadius: 0, fill: '-1', backgroundColor: 'rgba(31,127,209,.13)', spanGaps: true, tension: 0.3 },
           line(g.series.hr_avg, C.s1, { label: 'Ø' }),
         ] },
         options: { ...o, scales: { ...o.scales, y: { ...o.scales.y, suggestedMin: Math.max(0, Math.min(...g.series.hr_min.filter((x) => x != null)) - 5) } },
@@ -571,7 +571,7 @@
       if (c.metric === 'hrv' && data.length >= 7) ds.push(line(rolling(data, 7), C.s2, { label: '7-Tage-Schnitt', pointRadius: 0, borderDash: [5, 4] }));
       if (c.metric === 'readiness' || c.metric === 'hrv') {
         const grad = el.getContext('2d').createLinearGradient(0, 0, 0, 180);
-        grad.addColorStop(0, 'rgba(42,155,224,.22)'); grad.addColorStop(1, 'rgba(42,155,224,0)');
+        grad.addColorStop(0, 'rgba(31,127,209,.18)'); grad.addColorStop(1, 'rgba(31,127,209,0)');
         ds[0].fill = 'origin';
         ds[0].backgroundColor = grad;
       }
