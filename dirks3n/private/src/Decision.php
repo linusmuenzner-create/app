@@ -141,10 +141,17 @@ Regeln:
 - Dauer muss in ein freies Zeitfenster passen und darf session_max_min aus dem Profil nicht überschreiten; schlage eine passende Uhrzeit vor.
 - Fehlen Daten, entscheide vorsichtig mit dem, was da ist, und sag es kurz.
 - reasoning: höchstens 3 kurze Sätze auf Deutsch, du-Form, mit den entscheidenden Zahlen.
-- session: konkrete Übungen mit Sätzen × Wiederholungen (bei Ausdauer: Blöcke mit Dauer/Puls-Zone). Bei Ruhetag: 1–3 Erholungs-Tipps.
+- session: konkrete Übungen. Kraftübungen IMMER aus exercise_catalog wählen: exercise_id = Schlüssel, name = deutscher Name, detail im Format "4 × 6–8" (Sätze × Wiederholungen). Bevorzuge Übungen aus liked_exercises, vermeide disliked_exercises. Kein Gewicht angeben – das berechnet die App aus dem Verlauf. Andere Punkte (Aufwärmen, Cardio-Blöcke, Erholungs-Tipps) mit exercise_id "".
+- Bei Ruhetag: 1–3 Erholungs-Tipps.
 - warnings: nur echte Warnhinweise (z. B. Krankheitsanzeichen), sonst leere Liste.
 TXT;
         $payload = $ctx;
+        $payload['exercise_catalog'] = Training::catalogForPrompt();
+        if (Exercises::available()) {
+            $prefs = Db::all('SELECT id, preference FROM d3_exercises WHERE preference <> 0 AND curated = 1');
+            $payload['liked_exercises'] = array_values(array_map(fn($r) => $r['id'], array_filter($prefs, fn($r) => (int)$r['preference'] > 0)));
+            $payload['disliked_exercises'] = array_values(array_map(fn($r) => $r['id'], array_filter($prefs, fn($r) => (int)$r['preference'] < 0)));
+        }
         if ($userNote !== '') {
             $payload['user_note'] = mb_substr($userNote, 0, 300);
         }
@@ -163,10 +170,11 @@ TXT;
                     'items' => [
                         'type' => 'object',
                         'properties' => [
+                            'exercise_id' => ['type' => 'string', 'enum' => array_merge([''], array_keys(Exercises::CATALOG))],
                             'name' => ['type' => 'string'],
                             'detail' => ['type' => 'string'],
                         ],
-                        'required' => ['name', 'detail'],
+                        'required' => ['exercise_id', 'name', 'detail'],
                         'additionalProperties' => false,
                     ],
                 ],
@@ -185,7 +193,12 @@ TXT;
         $session = [];
         foreach (array_slice((array)($r['session'] ?? []), 0, 12) as $s) {
             if (is_array($s)) {
-                $session[] = ['name' => mb_substr((string)($s['name'] ?? ''), 0, 80), 'detail' => mb_substr((string)($s['detail'] ?? ''), 0, 160)];
+                $exId = (string)($s['exercise_id'] ?? '');
+                $session[] = [
+                    'exercise_id' => isset(Exercises::CATALOG[$exId]) ? $exId : '',
+                    'name' => isset(Exercises::CATALOG[$exId]) ? Exercises::CATALOG[$exId][0] : mb_substr((string)($s['name'] ?? ''), 0, 80),
+                    'detail' => mb_substr((string)($s['detail'] ?? ''), 0, 160),
+                ];
             }
         }
         return [
@@ -289,13 +302,12 @@ TXT;
             }
             $variantB = str_ends_with(trim($lastFocus), ' A');
             $scheme = $level === 'hart' ? '4 × 6–8' : '3 × 8–10';
+            $ex = fn(string $id, string $detail) => ['exercise_id' => $id, 'name' => Exercises::CATALOG[$id][0], 'detail' => $detail];
             $session = $variantB
-                ? [['name' => 'Rumänisches Kreuzheben', 'detail' => $scheme], ['name' => 'Klimmzüge oder Latzug', 'detail' => $scheme],
-                   ['name' => 'Schrägbankdrücken (Kurzhantel)', 'detail' => $scheme], ['name' => 'Ausfallschritte', 'detail' => '3 × 10 je Bein'],
-                   ['name' => 'Seitheben', 'detail' => '3 × 12–15']]
-                : [['name' => 'Kniebeuge', 'detail' => $scheme], ['name' => 'Bankdrücken', 'detail' => $scheme],
-                   ['name' => 'Rudern (Langhantel oder Kabel)', 'detail' => $scheme], ['name' => 'Schulterdrücken', 'detail' => '3 × 8–10'],
-                   ['name' => 'Plank', 'detail' => '3 × 45 s']];
+                ? [$ex('Romanian_Deadlift', $scheme), $ex('Wide-Grip_Lat_Pulldown', $scheme), $ex('Incline_Dumbbell_Press', $scheme),
+                   $ex('Dumbbell_Lunges', '3 × 10–12'), $ex('Side_Lateral_Raise', '3 × 12–15')]
+                : [$ex('Barbell_Squat', $scheme), $ex('Barbell_Bench_Press_-_Medium_Grip', $scheme), $ex('Seated_Cable_Rows', $scheme),
+                   $ex('Seated_Dumbbell_Press', '3 × 8–10'), $ex('Plank', '3 × 30–60')];
             $reasons[] = $sinceStrength === null ? 'Kein Krafttraining in den letzten Wochen erfasst.' : "Letztes Krafttraining vor $sinceStrength Tagen.";
             return self::result(true, 'Kraft', $variantB ? 'Ganzkörper B' : 'Ganzkörper A', $level, min($duration, 70), $timeHint, $reasons, $warnings, $session);
         }

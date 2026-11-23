@@ -118,6 +118,81 @@ try {
             if (GoogleAuth::configured()) GoogleAuth::disconnect();
             Http::json(['ok' => true, 'google' => GoogleHealth::statusInfo()]);
 
+        // ------------------------------------------------------------ Übungen & Training
+        case 'exercises':
+            requireTraining();
+            Http::json(['items' => Exercises::search(mb_substr(trim((string)($_GET['q'] ?? '')), 0, 60),
+                mb_substr((string)($_GET['muscle'] ?? ''), 0, 40), ($_GET['curated'] ?? '') === '1', (int)($_GET['limit'] ?? 60)),
+                'muscles' => array_values(Exercises::MUSCLES_DE)]);
+
+        case 'exercise':
+            requireTraining();
+            $id = exerciseId($_GET['id'] ?? '');
+            if (($_GET['translate'] ?? '') === '1') {
+                Exercises::translateInstructions($id);
+            }
+            $row = Exercises::get($id);
+            if (!$row) Http::error('Übung nicht gefunden', 404);
+            Http::json(['exercise' => Exercises::present($row, true), 'progress' => Training::exerciseProgress($id),
+                'can_translate' => !$row['instructions_de'] && Claude::available()]);
+
+        case 'exercise_pref':
+            requireTraining();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            $b = Http::body();
+            Db::run('UPDATE d3_exercises SET preference = ? WHERE id = ?', [max(-1, min(1, (int)($b['preference'] ?? 0))), exerciseId($b['id'] ?? '')]);
+            Http::json(['ok' => true]);
+
+        case 'training':
+            requireTraining();
+            $day = today();
+            Http::json(['active' => Training::active(), 'proposal' => Training::proposal($day),
+                'decision' => Decision::get($day), 'history' => Training::history(20)]);
+
+        case 'training_session':
+            requireTraining();
+            Http::json(Training::summary((int)($_GET['id'] ?? 0)));
+
+        case 'training_start':
+            requireTraining();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            $b = Http::body();
+            Http::json(Training::start(today(), ($b['from'] ?? 'plan') === 'plan'));
+
+        case 'training_set':
+            requireTraining();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            $b = Http::body();
+            Http::json(Training::updateSet((int)($b['set_id'] ?? 0),
+                isset($b['reps']) && $b['reps'] !== '' && $b['reps'] !== null ? (int)$b['reps'] : null,
+                isset($b['weight']) && $b['weight'] !== '' && $b['weight'] !== null ? round((float)str_replace(',', '.', (string)$b['weight']), 2) : null,
+                !empty($b['done'])));
+
+        case 'training_add_set':
+        case 'training_add_exercise':
+            requireTraining();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            $b = Http::body();
+            $sid = (int)($b['session_id'] ?? 0);
+            $ex = exerciseId($b['exercise_id'] ?? '');
+            Http::json($action === 'training_add_set' ? Training::addSet($sid, $ex) : Training::addExercise($sid, $ex));
+
+        case 'training_remove_set':
+            requireTraining();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            Http::json(Training::removeSet((int)(Http::body()['set_id'] ?? 0)));
+
+        case 'training_finish':
+            requireTraining();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            Http::json(Training::finish((int)(Http::body()['session_id'] ?? 0)));
+
+        case 'training_discard':
+            requireTraining();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            Training::discard((int)(Http::body()['session_id'] ?? 0));
+            Http::json(['ok' => true]);
+
         case 'calendar_sync':
             if ($method !== 'POST') Http::error('POST erwartet', 405);
             Http::json(Ics::syncAll());
@@ -125,6 +200,8 @@ try {
         default:
             Http::error('Unbekannte Aktion', 404);
     }
+} catch (InvalidArgumentException $e) {
+    Http::error($e->getMessage(), 400);
 } catch (Throwable $e) {
     app_log('API-Fehler (' . $action . '): ' . $e->getMessage() . ' @ ' . basename($e->getFile()) . ':' . $e->getLine());
     Http::error('Serverfehler – Details stehen in private/logs/app.log', 500);
@@ -140,6 +217,22 @@ function validDay($d): string
         Http::error('Ungültiges Datum');
     }
     return $d;
+}
+
+function requireTraining(): void
+{
+    if (!Training::available()) {
+        Http::error('Datenbank-Update 003 fehlt: private/sql/update_003_training.sql in phpMyAdmin ausführen.', 409);
+    }
+}
+
+function exerciseId($id): string
+{
+    $id = (string)$id;
+    if (!preg_match('/^[A-Za-z0-9_,()\-]{1,100}$/', $id)) {
+        Http::error('Ungültige Übung');
+    }
+    return $id;
 }
 
 function aiInfo(): array

@@ -50,7 +50,8 @@ final class Claude
     public static function model(string $purpose): string
     {
         $models = (array)cfg('models', []);
-        return $models[$purpose] ?? 'claude-sonnet-5-5';
+        $defaults = ['translate' => 'claude-haiku-5-5', 'food_photo' => 'claude-haiku-5-5', 'calendar_chat' => 'claude-haiku-5-5'];
+        return $models[$purpose] ?? ($defaults[$purpose] ?? 'claude-sonnet-5-5');
     }
 
     /**

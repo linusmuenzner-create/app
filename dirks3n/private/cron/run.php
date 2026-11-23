@@ -94,6 +94,16 @@ function d3_run_cron(string $job): string
         $log[] = "Aufräumen: $removed alte Sitzungen entfernt";
     }
 
+    // 4) Übungsbilder der Kernübungen vorab laden (nachts, in kleinen Portionen)
+    if (($job === 'images' || ($job === 'hourly' && $hour >= 1 && $hour <= 5)) && Exercises::available()) {
+        try {
+            $n = Exercises::prefetchImages($job === 'images' ? 60 : 30);
+            $log[] = $n ? "Übungsbilder: $n geladen" : 'Übungsbilder: alle da';
+        } catch (Throwable $e) {
+            $log[] = 'Übungsbilder-Fehler: ' . $e->getMessage();
+        }
+    }
+
     Db::run('INSERT INTO d3_sync_log (kind, items, info) VALUES (?,?,?)', ['cron', 0, mb_substr(implode(' | ', $log), 0, 500)]);
     return implode("\n", $log) . "\n";
 }

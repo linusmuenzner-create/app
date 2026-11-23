@@ -6,7 +6,7 @@
   const $app = document.getElementById('app');
   const $tabbar = document.getElementById('tabbar');
   const $toast = document.getElementById('toast');
-  const state = { csrf: '', charts: [], day: null, range: 30, today: null };
+  const state = { csrf: '', charts: [], day: null, range: 30, today: null, session: null, rest: null, lib: null };
 
   // Datenreihen-Farben (validiert für dunklen Hintergrund) + Status
   const C = {
@@ -80,6 +80,7 @@
     phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
     spark: '<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/>',
     server: '<rect x="3.5" y="4" width="17" height="7" rx="2"/><rect x="3.5" y="13" width="17" height="7" rx="2"/><path d="M7.5 7.5h.01M7.5 16.5h.01"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
     logout: '<path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 16l-4-4 4-4M6 12h10"/>',
   };
   const ico = (name, cls = '') => `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true">${P[name] || ''}</svg>`;
@@ -279,7 +280,8 @@
         <span>Aktualisiert ${esc(relTime(dec.updated_at))}</span>
         ${d.is_today ? `<span>${d.regenerations_left}× neu planbar</span>` : ''}
       </div>
-      ${d.is_today && d.regenerations_left > 0 ? `<button class="btn ghost block" id="decideBtn" style="margin-top:12px">${ico('refresh', 'sm')}Neu planen</button>` : ''}
+      ${d.is_today && dec.train && ['Kraft', 'HIIT'].includes(dec.kind) ? `<a class="btn primary block" href="#/training" style="margin-top:12px">${ico('bolt', 'sm')}Zum Training</a>` : ''}
+      ${d.is_today && d.regenerations_left > 0 ? `<button class="btn ghost block" id="decideBtn" style="margin-top:8px">${ico('refresh', 'sm')}Neu planen</button>` : ''}
     </section>`;
   }
 
@@ -742,13 +744,397 @@
     return api('settings', { method: 'POST', body: { profile, calendar_urls: urls } });
   }
 
+  // ------------------------------------------------------------------ Training
+  const kg = (w) => (w == null ? '' : fmt(w, Number.isInteger(w) ? 0 : (Math.round(w * 10) === w * 10 ? 1 : 2)));
+  const thumb = (ex, cls = '') => ex && ex.images > 0
+    ? `<div class="thumb ${cls}"><img src="exercise-img.php?id=${encodeURIComponent(ex.id)}&n=0" alt="" loading="lazy">${ex.images > 1 ? `<img class="f2" src="exercise-img.php?id=${encodeURIComponent(ex.id)}&n=1" alt="" loading="lazy">` : ''}</div>`
+    : `<div class="thumb ${cls}"><div class="noimg">${ico('dumbbell')}</div></div>`;
+  const repsLabel = (min, max, bw) => min == null ? '' : (min === max ? `${min}` : `${min}–${max}`) + (bw && max >= 30 ? ' s' : '');
+  const scheme = (it) => `${it.sets} × ${repsLabel(it.reps_min, it.reps_max, it.exercise.meta.bodyweight)}${it.exercise.meta.bodyweight ? '' : (it.weight != null ? ` · ${kg(it.weight)} kg` : ' · Startgewicht wählen')}`;
+
+  async function renderTraining() {
+    $app.innerHTML = '<div class="skeleton" style="height:70px;background:none"></div><div class="skeleton" style="height:260px"></div><div class="skeleton"></div>';
+    let t;
+    try { t = await api('training'); } catch (e) { $app.innerHTML = `<div class="card">${esc(e.message)}</div>`; return; }
+    const p = t.proposal;
+    $app.innerHTML = `
+      <header class="header fade-in"><div><div class="eyebrow">${esc(dayLabel(isoDay(new Date())))}</div><h1>Training<span class="accent">.</span></h1></div>
+        <a class="btn ghost" href="#/uebungen" style="min-height:40px;padding:8px 14px">${ico('dumbbell', 'sm')}Übungen</a></header>
+
+      ${t.active ? `<section class="card fade-in" style="border-color:#b2e01c">
+          <div class="card-head"><div class="card-title">${ico('timer', 'sm')}Läuft gerade</div><span class="tag">${esc(elapsed(t.active.started_at))}</span></div>
+          <div class="plan-title">${esc(t.active.title)}</div>
+          <a class="btn primary block" style="margin-top:14px" href="#/training/s/${t.active.id}">${ico('next', 'sm')}Weiter trainieren</a>
+        </section>` : ''}
+
+      ${!t.active && p ? `<section class="card fade-in">
+          <div class="card-head"><div class="card-title">${ico('target', 'sm')}Plan für heute</div><span class="tag">${esc(p.intensity || '')}</span></div>
+          <div class="plan-title" style="margin-bottom:8px">${esc(p.title)}</div>
+          <div>${p.items.map((it) => `<div class="ex-row" data-ex="${esc(it.exercise.id)}">${thumb(it.exercise)}<div class="grow"><div class="name">${esc(it.exercise.name)}</div>
+            <div class="sub num">${esc(scheme(it))}</div>${it.last ? `<div class="small muted">Zuletzt: ${esc(it.last)}</div>` : ''}</div><span class="chev">${ico('next', 'sm')}</span></div>`).join('')}</div>
+          <button class="btn primary block" id="startPlan" style="margin-top:14px">${ico('bolt', 'sm')}Training starten</button>
+        </section>` : ''}
+
+      ${!t.active && !p ? `<section class="card fade-in">
+          <div class="card-head"><div class="card-title">${ico('target', 'sm')}Heute</div></div>
+          <p class="reason" style="margin:0">${t.decision ? `Heute steht <b>${esc(t.decision.kind)}</b> im Plan – kein Krafttraining zum Mitschreiben.` : 'Noch kein Plan für heute.'} Du kannst trotzdem frei trainieren.</p>
+        </section>` : ''}
+
+      ${!t.active ? `<button class="btn block ${p ? 'ghost' : 'primary'}" id="startFree" style="margin-bottom:14px">${ico('dumbbell', 'sm')}Freies Training starten</button>` : ''}
+
+      <section class="card fade-in">
+        <div class="card-head"><div class="card-title">${ico('clock', 'sm')}Verlauf</div></div>
+        ${t.history.length ? `<ul class="list">${t.history.map((h) => `<li style="cursor:pointer" data-session="${h.id}"><span class="badge-ico">${ico('dumbbell', 'sm')}</span>
+          <span class="grow">${esc(h.title)}<div class="small muted">${esc(dayLabel(h.day, { weekday: 'short', day: 'numeric', month: 'short' }))} · ${h.exercises} Übungen · ${h.sets} Sätze${h.minutes ? ' · ' + h.minutes + ' min' : ''}</div></span>
+          <span class="secondary num">${fmt(h.volume_kg)} kg</span></li>`).join('')}</ul>` : '<p class="muted small" style="margin:0">Noch keine Trainings aufgezeichnet.</p>'}
+      </section>`;
+
+    $app.querySelectorAll('[data-ex]').forEach((el) => el.addEventListener('click', () => { location.hash = '#/uebung/' + encodeURIComponent(el.dataset.ex); }));
+    $app.querySelectorAll('[data-session]').forEach((el) => el.addEventListener('click', () => { location.hash = '#/training/s/' + el.dataset.session; }));
+    const go = async (from, btn) => {
+      btn.disabled = true;
+      try { const s = await api('training_start', { method: 'POST', body: { from } }); location.hash = '#/training/s/' + s.id; } catch (e) { toast(e.message, 5000); btn.disabled = false; }
+    };
+    const sp = document.getElementById('startPlan'); if (sp) sp.onclick = () => go('plan', sp);
+    const sf = document.getElementById('startFree'); if (sf) sf.onclick = () => go('free', sf);
+  }
+
+  function elapsed(startedAt, endAt) {
+    const s = new Date(startedAt.replace(' ', 'T')).getTime();
+    const e = endAt ? new Date(endAt.replace(' ', 'T')).getTime() : Date.now();
+    const sec = Math.max(0, Math.floor((e - s) / 1000));
+    const h = Math.floor(sec / 3600); const m = Math.floor((sec % 3600) / 60); const ss = sec % 60;
+    return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(ss).padStart(2, '0');
+  }
+
+  // ---------- Laufende Einheit
+  let wakeLock = null;
+  async function keepAwake(on) {
+    try {
+      if (on && 'wakeLock' in navigator && !wakeLock) wakeLock = await navigator.wakeLock.request('screen');
+      if (!on && wakeLock) { await wakeLock.release(); wakeLock = null; }
+    } catch (e) { /* nicht unterstützt */ }
+  }
+
+  async function renderSession(id) {
+    $app.innerHTML = '<div class="skeleton" style="height:260px"></div><div class="skeleton" style="height:260px"></div>';
+    let s;
+    try { s = await api('training_session', { params: { id } }); } catch (e) { $app.innerHTML = `<div class="card">${esc(e.message)}</div>`; return; }
+    drawSession(s);
+  }
+
+  function drawSession(s) {
+    state.session = s;
+    const active = s.status === 'active';
+    keepAwake(active);
+    const doneSets = s.exercises.reduce((a, e) => a + e.sets.filter((x) => x.done).length, 0);
+    const allSets = s.exercises.reduce((a, e) => a + e.sets.length, 0);
+    $app.innerHTML = `
+      <div class="session-head">
+        <a class="iconbtn" href="#/training" aria-label="Zurück">${ico('prev')}</a>
+        <div class="grow"><div class="title">${esc(s.title)}</div>
+          <div class="clock"><span id="sClock">${esc(elapsed(s.started_at, s.finished_at))}</span> · <span id="sCount">${doneSets}/${allSets}</span> Sätze</div></div>
+        ${active ? `<button class="btn primary" id="finishBtn">Fertig</button>` : ''}
+      </div>
+
+      ${!active && s.summary ? `<section class="card fade-in">
+        <div class="card-head"><div class="card-title">${ico('check', 'sm')}Abgeschlossen</div><span class="tag">${esc(dayLabel(s.day, { day: 'numeric', month: 'short' }))}</span></div>
+        <div class="stat-grid"><div><b>${fmt(s.summary.volume_kg)}</b><span>kg Volumen</span></div><div><b>${s.summary.sets}</b><span>Sätze</span></div><div><b>${s.summary.minutes ?? '–'}</b><span>Minuten</span></div></div>
+        ${(s.summary.records || []).map((r) => `<div class="trophy">${ico('spark', 'sm')}<span><b>Neuer Rekord:</b> ${esc(r.exercise)} – geschätztes Maximum ${kg(r.e1rm)} kg (vorher ${kg(r.before)} kg)</span></div>`).join('')}
+      </section>` : ''}
+
+      ${s.exercises.map((e, ei) => exerciseCard(e, ei, active)).join('')}
+
+      ${active ? `<button class="btn block" id="addEx" style="margin-bottom:10px">${ico('dumbbell', 'sm')}Übung hinzufügen</button>
+        <button class="linkbtn danger" id="discard" style="width:100%;justify-content:center">Training verwerfen</button>` : ''}
+    `;
+
+    clearInterval(drawSession._clock);
+    if (active) drawSession._clock = setInterval(() => { const c = document.getElementById('sClock'); if (c) c.textContent = elapsed(s.started_at); else clearInterval(drawSession._clock); }, 1000);
+
+    $app.querySelectorAll('.ex-top').forEach((el) => el.addEventListener('click', () => { location.hash = '#/uebung/' + encodeURIComponent(el.dataset.ex); }));
+    if (!active) return;
+
+    $app.querySelectorAll('tr[data-set]').forEach((row) => {
+      const setId = Number(row.dataset.set);
+      const w = row.querySelector('input[name=w]');
+      const r = row.querySelector('input[name=r]');
+      const btn = row.querySelector('.check');
+      const save = (done) => api('training_set', { method: 'POST', body: { set_id: setId, reps: r.value === '' ? null : Number(r.value), weight: w && w.value !== '' ? w.value : (w ? null : 0), done } });
+      // Gewicht in späteren, noch leeren Sätzen derselben Übung übernehmen
+      if (w) w.addEventListener('change', () => {
+        row.closest('table').querySelectorAll('tr[data-set]').forEach((other) => {
+          const ow = other.querySelector('input[name=w]');
+          if (Number(other.dataset.no) > Number(row.dataset.no) && !other.classList.contains('done') && ow && ow.value === '') ow.value = w.value;
+        });
+        if (!row.classList.contains('done')) save(false).catch(() => {});
+      });
+      btn.addEventListener('click', async () => {
+        unlockAudio();
+        const nowDone = !row.classList.contains('done');
+        if (nowDone && r.value === '') r.value = r.placeholder;
+        if (nowDone && w && w.value === '' && !row.dataset.bw) { toast('Bitte zuerst das Gewicht eintragen'); w.focus(); return; }
+        btn.disabled = true;
+        try {
+          const res = await save(nowDone);
+          row.classList.toggle('done', nowDone);
+          btn.classList.toggle('on', nowDone);
+          state.session = res.session;
+          const all = res.session.exercises.flatMap((e) => e.sets);
+          const cnt = document.getElementById('sCount'); if (cnt) cnt.textContent = `${all.filter((x) => x.done).length}/${all.length}`;
+          if (nowDone) startRest(res.rest_sec, nextSetLabel(res.session, setId));
+        } catch (e) { toast(e.message, 5000); }
+        btn.disabled = false;
+      });
+    });
+    $app.querySelectorAll('[data-addset]').forEach((b) => b.addEventListener('click', async () => {
+      try { drawSession(await api('training_add_set', { method: 'POST', body: { session_id: s.id, exercise_id: b.dataset.addset } })); } catch (e) { toast(e.message, 5000); }
+    }));
+    $app.querySelectorAll('[data-delset]').forEach((b) => b.addEventListener('click', async () => {
+      try { drawSession(await api('training_remove_set', { method: 'POST', body: { set_id: Number(b.dataset.delset) } })); } catch (e) { toast(e.message, 5000); }
+    }));
+    document.getElementById('addEx').onclick = () => { location.hash = '#/uebungen/pick/' + s.id; };
+    document.getElementById('discard').onclick = async () => {
+      if (!window.confirm('Training wirklich verwerfen? Alle Sätze dieser Einheit werden gelöscht.')) return;
+      await api('training_discard', { method: 'POST', body: { session_id: s.id } });
+      stopRest(); keepAwake(false); location.hash = '#/training';
+    };
+    document.getElementById('finishBtn').onclick = async () => {
+      const open = s.exercises.reduce((a, e) => a + e.sets.filter((x) => !x.done).length, 0);
+      if (open && !window.confirm(`${open} Sätze sind noch offen und werden nicht gespeichert. Training beenden?`)) return;
+      try {
+        const res = await api('training_finish', { method: 'POST', body: { session_id: s.id } });
+        stopRest(); keepAwake(false);
+        if (res.discarded) { toast('Keine Sätze erledigt – Training verworfen'); location.hash = '#/training'; return; }
+        toast('Stark! Training gespeichert.');
+        drawSession(res);
+      } catch (e) { toast(e.message, 5000); }
+    };
+  }
+
+  function exerciseCard(e, ei, active) {
+    const ex = e.exercise;
+    const bw = ex.meta && ex.meta.bodyweight;
+    const timed = bw && e.sets[0] && e.sets[0].target_reps_max >= 30;
+    return `<section class="card ex-card fade-in">
+      <div class="ex-top" data-ex="${esc(ex.id)}">${thumb(ex)}<div class="grow" style="min-width:0">
+        <div class="ex-name">${esc(ex.name)}</div>
+        <div class="ex-sub">${esc((ex.muscles || []).join(', '))}${e.last ? ' · zuletzt ' + esc(e.last) : ''}</div></div></div>
+      <table class="sets">
+        <thead><tr><th>Satz</th><th>Vorgabe</th>${bw ? '' : '<th>kg</th>'}<th>${timed ? 'Sek.' : 'Wdh.'}</th><th></th></tr></thead>
+        <tbody>${e.sets.map((x) => `<tr data-set="${x.id}" data-no="${x.set_no}" ${bw ? 'data-bw="1"' : ''} class="${x.done ? 'done' : ''}">
+          <td><span class="no">${x.set_no}</span></td>
+          <td class="target">${esc(repsLabel(x.target_reps_min, x.target_reps_max, false))}${!bw && x.target_weight != null ? ' × ' + kg(x.target_weight) : ''}</td>
+          ${bw ? '' : `<td><input name="w" type="text" inputmode="decimal" value="${x.weight != null ? esc(kg(x.weight)) : ''}" placeholder="kg" ${active ? '' : 'disabled'} aria-label="Gewicht Satz ${x.set_no}"></td>`}
+          <td><input name="r" type="number" inputmode="numeric" min="0" max="500" value="${x.reps ?? ''}" placeholder="${x.target_reps_max ?? ''}" ${active ? '' : 'disabled'} aria-label="Wiederholungen Satz ${x.set_no}"></td>
+          <td>${active ? `<button class="check ${x.done ? 'on' : ''}" aria-label="Satz ${x.set_no} erledigt">${ico('check', 'sm')}</button>` : (x.done ? ico('check', 'sm') : '')}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+      ${active ? `<div class="row" style="justify-content:space-between;flex-wrap:nowrap"><button class="linkbtn" data-addset="${esc(ex.id)}" style="flex:0">+ Satz</button>
+        ${e.sets.length > 1 && !e.sets[e.sets.length - 1].done ? `<button class="linkbtn danger" data-delset="${e.sets[e.sets.length - 1].id}" style="flex:0">Letzten Satz entfernen</button>` : ''}</div>` : ''}
+    </section>`;
+  }
+
+  function nextSetLabel(s, setId) {
+    const flat = [];
+    s.exercises.forEach((e) => e.sets.forEach((x) => flat.push({ e, x })));
+    const next = flat.find((f) => !f.x.done);
+    if (!next) return 'Alle Sätze geschafft – tippe auf „Fertig“';
+    const w = next.x.weight ?? next.x.target_weight;
+    return `${next.e.exercise.name} · Satz ${next.x.set_no}: ${repsLabel(next.x.target_reps_min, next.x.target_reps_max, false)}${w ? ' × ' + kg(w) + ' kg' : ''}`;
+  }
+
+  // ---------- Pausentimer (läuft auch weiter, wenn die App kurz im Hintergrund war)
+  let audioCtx = null;
+  function unlockAudio() {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    } catch (e) { /* kein Ton */ }
+  }
+  function beep() {
+    if (!audioCtx) return;
+    [0, 0.22, 0.44].forEach((t, i) => {
+      const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+      o.frequency.value = i === 2 ? 1320 : 880; o.type = 'sine';
+      g.gain.setValueAtTime(0.0001, audioCtx.currentTime + t);
+      g.gain.exponentialRampToValueAtTime(0.35, audioCtx.currentTime + t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + t + 0.18);
+      o.connect(g).connect(audioCtx.destination); o.start(audioCtx.currentTime + t); o.stop(audioCtx.currentTime + t + 0.2);
+    });
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  }
+  function startRest(sec, nextLabel) {
+    state.rest = { end: Date.now() + sec * 1000, total: sec, next: nextLabel, rang: false };
+    try { localStorage.setItem('d3rest', JSON.stringify(state.rest)); } catch (e) { /* egal */ }
+    drawRest();
+  }
+  function stopRest() {
+    state.rest = null;
+    try { localStorage.removeItem('d3rest'); } catch (e) { /* egal */ }
+    clearInterval(drawRest._t);
+    const el = document.getElementById('restBox'); if (el) el.remove();
+  }
+  function drawRest() {
+    let el = document.getElementById('restBox');
+    if (!state.rest) { if (el) el.remove(); return; }
+    if (!el) {
+      el = document.createElement('div'); el.id = 'restBox'; el.className = 'rest'; el.setAttribute('role', 'timer');
+      el.innerHTML = `<div class="row1"><div style="flex:1"><div class="lbl" id="rLbl">Pause</div><div class="next" id="rNext"></div></div><div class="time" id="rTime"></div></div>
+        <div class="bar"><i id="rBar"></i></div>
+        <div class="ctrl"><button id="rMinus">−15 s</button><button id="rPlus">+15 s</button><button class="go" id="rSkip">Weiter</button></div>`;
+      document.body.appendChild(el);
+      el.querySelector('#rMinus').onclick = () => { state.rest.end -= 15000; tick(); };
+      el.querySelector('#rPlus').onclick = () => { state.rest.end += 15000; state.rest.total += 15; state.rest.rang = false; tick(); };
+      el.querySelector('#rSkip').onclick = () => stopRest();
+    }
+    const tick = () => {
+      if (!state.rest) return;
+      const left = Math.round((state.rest.end - Date.now()) / 1000);
+      const box = document.getElementById('restBox'); if (!box) return;
+      box.querySelector('#rNext').textContent = 'Als Nächstes: ' + state.rest.next;
+      if (left <= 0) {
+        box.classList.add('finished');
+        box.querySelector('#rLbl').textContent = 'Nächster Satz!';
+        box.querySelector('#rTime').textContent = '0:00';
+        box.querySelector('#rBar').style.width = '100%';
+        if (!state.rest.rang) { state.rest.rang = true; beep(); }
+        if (left < -60) stopRest();
+        return;
+      }
+      box.classList.remove('finished');
+      box.querySelector('#rLbl').textContent = 'Pause';
+      box.querySelector('#rTime').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+      box.querySelector('#rBar').style.width = `${Math.max(0, 100 - (left / state.rest.total) * 100)}%`;
+    };
+    clearInterval(drawRest._t);
+    drawRest._t = setInterval(tick, 250);
+    tick();
+  }
+
+  // ---------- Übungsbibliothek
+  async function renderLibrary(pickFor) {
+    state.lib = state.lib || { q: '', muscle: '' };
+    $app.innerHTML = `
+      ${pickFor ? `<a class="backlink" href="#/training/s/${esc(pickFor)}">${ico('prev', 'sm')}Zurück zum Training</a>`
+        : `<a class="backlink" href="#/training">${ico('prev', 'sm')}Training</a>`}
+      <header class="header" style="margin-top:0"><div><div class="eyebrow">${pickFor ? 'Zum Training hinzufügen' : '870+ Übungen'}</div><h1>Übungen<span class="accent">.</span></h1></div></header>
+      <div class="search">${ico('search')}<input id="libQ" type="search" placeholder="Übung suchen …" value="${esc(state.lib.q)}" autocomplete="off"></div>
+      <div class="chipsrow" id="libMuscles"></div>
+      <section class="card" id="libList"><div class="skeleton" style="height:200px;margin:0"></div></section>`;
+    const load = async () => {
+      let d;
+      try { d = await api('exercises', { params: { q: state.lib.q, muscle: state.lib.muscle, limit: 80 } }); } catch (e) { document.getElementById('libList').innerHTML = esc(e.message); return; }
+      const m = document.getElementById('libMuscles');
+      if (m && !m.childElementCount) {
+        m.innerHTML = ['', ...d.muscles].map((x) => `<button data-m="${esc(x)}" aria-pressed="${state.lib.muscle === x}">${x ? esc(x) : 'Alle'}</button>`).join('');
+        m.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => {
+          state.lib.muscle = b.dataset.m; m.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); load();
+        }));
+      }
+      const list = document.getElementById('libList');
+      if (!list) return;
+      list.innerHTML = d.items.length ? d.items.map((x) => `<div class="ex-row" data-id="${esc(x.id)}">${thumb(x)}<div class="grow"><div class="name">${esc(x.name)}${x.preference > 0 ? ' <span class="small" style="color:var(--good)">♥</span>' : ''}</div>
+          <div class="sub">${esc([(x.muscles || []).join(', '), x.equipment].filter(Boolean).join(' · '))}</div></div>
+          <span class="chev">${pickFor ? ico('check', 'sm') : ico('next', 'sm')}</span></div>`).join('') : '<div class="empty">Nichts gefunden</div>';
+      list.querySelectorAll('[data-id]').forEach((row) => row.addEventListener('click', async () => {
+        if (!pickFor) { location.hash = '#/uebung/' + encodeURIComponent(row.dataset.id); return; }
+        try { await api('training_add_exercise', { method: 'POST', body: { session_id: Number(pickFor), exercise_id: row.dataset.id } }); location.hash = '#/training/s/' + pickFor; } catch (e) { toast(e.message, 5000); }
+      }));
+    };
+    let t;
+    document.getElementById('libQ').addEventListener('input', (e) => { state.lib.q = e.target.value; clearTimeout(t); t = setTimeout(load, 250); });
+    load();
+  }
+
+  // ---------- Übung im Detail mit Fortschritt
+  async function renderExercise(id, translate = false) {
+    $app.innerHTML = '<div class="skeleton" style="height:300px"></div><div class="skeleton"></div>';
+    let d;
+    try { d = await api('exercise', { params: translate ? { id, translate: 1 } : { id } }); } catch (e) { $app.innerHTML = `<div class="card">${esc(e.message)}</div>`; return; }
+    destroyCharts();
+    const ex = d.exercise; const p = d.progress; const r = p.records;
+    $app.innerHTML = `
+      <button class="backlink" id="exBack" type="button">${ico('prev', 'sm')}Zurück</button>
+      <section class="card fade-in" style="padding:12px">${thumb(ex, 'lg')}
+        <div style="padding:12px 6px 4px"><div class="plan-title">${esc(ex.name)}</div>
+          ${ex.name !== ex.name_en ? `<div class="small muted">${esc(ex.name_en)}</div>` : ''}
+          <div class="chips" style="margin:12px 0 4px">${(ex.muscles || []).map((m) => `<span class="chip"><b>${esc(m)}</b></span>`).join('')}${(ex.muscles_secondary || []).map((m) => `<span class="chip">${esc(m)}</span>`).join('')}
+            <span class="chip">${esc(ex.equipment)}</span><span class="chip">${esc(ex.level || '')}</span></div></div>
+      </section>
+
+      <section class="card fade-in">
+        <div class="card-head"><div class="card-title">${ico('heart', 'sm')}Magst du die Übung?</div></div>
+        <div class="pref"><button class="btn" data-pref="1" aria-pressed="${ex.preference > 0}">Gerne</button><button class="btn" data-pref="0" aria-pressed="${ex.preference === 0}">Neutral</button><button class="btn" data-pref="-1" aria-pressed="${ex.preference < 0}">Lieber nicht</button></div>
+        <p class="small muted" style="margin:10px 0 0">Der Coach bevorzugt Übungen, die du gerne machst.</p>
+      </section>
+
+      <section class="card fade-in">
+        <div class="card-head"><div class="card-title">${ico('chart', 'sm')}Fortschritt</div><span class="tag">${r.sessions} Einheiten</span></div>
+        ${r.sessions ? `<div class="stat-grid" style="margin-bottom:6px">
+            <div><b>${ex.meta.bodyweight ? '–' : kg(r.top_weight) + ' kg'}</b><span>Bestes Gewicht</span></div>
+            <div><b>${r.e1rm ? kg(r.e1rm) + ' kg' : '–'}</b><span>Geschätztes Max.</span></div>
+            <div><b>${fmt(r.volume)}</b><span>Max. Volumen kg</span></div></div>
+          ${p.sessions.length > 1 ? `<div class="chart-box"><canvas id="ch-ex1" role="img" aria-label="Gewichtsverlauf"></canvas></div>
+            <div class="legend"><span><i style="background:${C.s1}"></i>Bestes Gewicht</span><span><i style="background:${C.s2}"></i>Geschätztes Maximum (1RM)</span></div>
+            <div class="chart-box" style="height:140px"><canvas id="ch-ex2" role="img" aria-label="Volumen je Einheit"></canvas></div>
+            <div class="legend"><span><i style="background:${C.s3}"></i>Volumen je Einheit (kg × Wdh.)</span></div>` : '<p class="small muted">Ab zwei Einheiten siehst du hier deine Kurve.</p>'}
+          <ul class="list" style="margin-top:8px">${p.sessions.slice().reverse().slice(0, 8).map((x) => `<li><span class="time">${esc(dayLabel(x.day, { day: 'numeric', month: 'short' }))}</span><span class="grow">${esc(x.best_set)}</span><span class="secondary num">${fmt(x.volume)} kg</span></li>`).join('')}</ul>`
+          : '<p class="small muted" style="margin:0">Noch nicht trainiert.</p>'}
+      </section>
+
+      <section class="card fade-in">
+        <div class="card-head"><div class="card-title">${ico('target', 'sm')}Ausführung</div>${ex.instructions_lang === 'en' ? '<span class="tag">Englisch</span>' : ''}</div>
+        <ol class="steps-list">${(ex.instructions || []).map((s) => `<li>${esc(s)}</li>`).join('')}</ol>
+        ${d.can_translate ? `<button class="btn block" id="translate">${ico('spark', 'sm')}Auf Deutsch übersetzen</button>` : ''}
+      </section>`;
+    document.getElementById('exBack').onclick = () => { if (history.length > 1) history.back(); else location.hash = '#/uebungen'; };
+    $app.querySelectorAll('[data-pref]').forEach((b) => b.addEventListener('click', async () => {
+      await api('exercise_pref', { method: 'POST', body: { id: ex.id, preference: Number(b.dataset.pref) } });
+      $app.querySelectorAll('[data-pref]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      toast('Gespeichert');
+    }));
+    const tr = document.getElementById('translate');
+    if (tr) tr.onclick = () => { tr.disabled = true; tr.innerHTML = '<span class="spinner" style="width:16px;height:16px;border-width:2px"></span> Übersetze …'; renderExercise(id, true); };
+    if (p.sessions.length > 1 && window.Chart) {
+      chartDefaults();
+      const labels = p.sessions.map((x) => shortLabel(x.day));
+      const o = baseOptions();
+      const lineDs = (data, color, label) => ({ data, label, borderColor: color, backgroundColor: color, borderWidth: 2, tension: 0.3, pointRadius: 3, pointBackgroundColor: color, pointBorderColor: C.surface, pointBorderWidth: 1.5, spanGaps: true });
+      state.charts.push(new window.Chart(document.getElementById('ch-ex1'), {
+        type: 'line',
+        data: { labels, datasets: [lineDs(p.sessions.map((x) => x.top_weight || null), C.s1, 'Bestes Gewicht'), lineDs(p.sessions.map((x) => x.e1rm || null), C.s2, 'Geschätztes Max.')] },
+        options: { ...o, plugins: { ...o.plugins, tooltip: { ...o.plugins.tooltip, callbacks: { label: (c) => `${c.dataset.label}: ${kg(c.parsed.y)} kg` } } } },
+      }));
+      state.charts.push(new window.Chart(document.getElementById('ch-ex2'), {
+        type: 'bar',
+        data: { labels, datasets: [{ data: p.sessions.map((x) => Math.round(x.volume)), backgroundColor: C.s3, borderRadius: { topLeft: 5, topRight: 5 }, borderSkipped: 'start', maxBarThickness: 22 }] },
+        options: { ...o, plugins: { ...o.plugins, tooltip: { ...o.plugins.tooltip, displayColors: false, callbacks: { label: (c) => `${fmt(c.parsed.y)} kg Volumen` } } } },
+      }));
+    }
+  }
+
+  // Laufenden Pausentimer nach Neuladen wiederherstellen
+  try {
+    const saved = JSON.parse(localStorage.getItem('d3rest') || 'null');
+    if (saved && saved.end > Date.now() - 60000) state.rest = saved;
+  } catch (e) { /* egal */ }
+
   // ------------------------------------------------------------------ Router
   async function route() {
-    const tab = (location.hash.replace('#/', '') || 'heute').split('?')[0];
+    const parts = (location.hash.replace('#/', '') || 'heute').split('?')[0].split('/');
+    const tab = ['uebung', 'uebungen'].includes(parts[0]) ? 'training' : parts[0];
     destroyCharts();
+    clearInterval(drawSession._clock);
+    if (!(parts[0] === 'training' && parts[1] === 's')) keepAwake(false);
     $tabbar.hidden = false;
     $tabbar.querySelectorAll('a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
     window.scrollTo(0, 0);
+    if (state.rest) drawRest();
+    if (parts[0] === 'training' && parts[1] === 's' && parts[2]) return renderSession(Number(parts[2]));
+    if (parts[0] === 'training') return renderTraining();
+    if (parts[0] === 'uebungen') return renderLibrary(parts[1] === 'pick' ? parts[2] : null);
+    if (parts[0] === 'uebung' && parts[1]) return renderExercise(decodeURIComponent(parts[1]));
     if (tab === 'statistik') return renderStats();
     if (tab === 'einstellungen') return renderSettings();
     return renderToday();

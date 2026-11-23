@@ -44,6 +44,20 @@ Hake nach der Installation diese Punkte ab. Dauer: ca. 10 Minuten.
 - [ ] Ein Training, das Fitbit und Apple Health beide melden, erscheint nur **einmal**.
 - [ ] (Bei „Extern + Testing“, nach 7 Tagen) Gelber Hinweis „Neu verbinden“ → antippen → wieder verbunden.
 
+## 7. Training (Workout-Tracking)
+- [ ] `private/sql/update_003_training.sql` in phpMyAdmin ausgeführt (nur bei bestehender Installation).
+- [ ] Tab **Training** → „Plan für heute“ zeigt Übungen mit Bild, Sätzen × Wiederholungen und Gewicht
+      (beim ersten Mal „Startgewicht wählen“).
+- [ ] **Training starten** → Gewicht/Wiederholungen eintragen → ✓ → Pausentimer erscheint unten,
+      mit −15 s / +15 s / Weiter. Am Ende Signalton + „Nächster Satz!“ (Ton erst nach dem ersten Antippen).
+- [ ] Gewicht im ersten Satz ändern → wird in die folgenden leeren Sätze übernommen.
+- [ ] **Übung hinzufügen** → Suche „curl“ → Übung antippen → erscheint im Training.
+- [ ] **Fertig** → Zusammenfassung mit Volumen, Sätzen, Minuten und ggf. „Neuer Rekord“.
+- [ ] Nächster Plan mit derselben Übung: Gewicht steigt, wenn du alle Wiederholungen geschafft hast.
+- [ ] Übung antippen → Detailseite mit Bildern, Fortschritt (ab 2 Einheiten Diagramm), „Gerne / Lieber nicht“.
+- [ ] „Auf Deutsch übersetzen“ → Anleitung erscheint auf Deutsch (einmalig ca. 0,0003 $).
+- [ ] Bildschirm bleibt während des Trainings an (iPhone ab iOS 16.4).
+
 ## Wenn etwas nicht klappt
 - Fehlertexte stehen in `private/logs/app.log` und `private/logs/php-error.log` (per FTP herunterladen).
 - Schick mir die letzten Zeilen (ohne Passwörter/Tokens), dann finden wir den Fehler.

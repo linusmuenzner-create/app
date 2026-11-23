@@ -42,6 +42,7 @@ return [
         'body_photo'    => 'claude-sonnet-5-5', // Körperfoto (späteres Modul)
         'food_photo'    => 'claude-haiku-5-5',  // Essensfoto (späteres Modul)
         'calendar_chat' => 'claude-haiku-5-5',  // Wochen-Chat (späteres Modul)
+        'translate'     => 'claude-haiku-5-5',  // Übungsanleitungen einmalig übersetzen
     ],
 
     // Harte Kostengrenze pro Kalendermonat in US-Dollar. Danach nur noch Regeln.
