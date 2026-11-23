@@ -55,4 +55,23 @@ return [
 
     // Login: Sitzung bleibt so viele Tage gültig (für die Home-Bildschirm-App praktisch)
     'session_days' => 30,
+
+    // ---------------------------------------------------------------------------
+    // Fitbit Charge 6 über die Google Health API (Anleitung: docs/GOOGLE-HEALTH.md)
+    // ---------------------------------------------------------------------------
+
+    // Schlüssel zum Verschlüsseln der Google-Tokens in der Datenbank: 64 Hex-Zeichen.
+    // Erzeugen (Mac-Terminal): openssl rand -hex 32
+    // NICHT mehr ändern, sobald du verbunden bist (sonst musst du dich neu verbinden).
+    'encryption_key' => '',
+
+    // Aus der Google Cloud Console → Google Auth Platform → Clients
+    'google' => [
+        'client_id'     => '',   // endet auf .apps.googleusercontent.com
+        'client_secret' => '',   // beginnt mit GOCSPX-
+        'redirect_uri'  => 'https://dirks3n.munzner.net/google-callback.php',
+    ],
+
+    // Wie viele Tage beim ersten Verbinden nachgeladen werden
+    'google_backfill_days' => 90,
 ];

@@ -11,7 +11,7 @@ if (PHP_SAPI === 'cli' && !function_exists('cfg')) {
 
 function d3_run_cron(string $job): string
 {
-    @set_time_limit(120);
+    @set_time_limit(150);
     $log = [];
     $hour = (int)now()->format('G');
     $day = today();
@@ -28,6 +28,25 @@ function d3_run_cron(string $job): string
             }
         } else {
             $log[] = 'Kalender: noch aktuell';
+        }
+    }
+
+    // 1b) Fitbit-Daten über Google Health holen (inkl. Nachladen früherer Tage)
+    if (in_array($job, ['hourly', 'google'], true) && GoogleAuth::configured() && Aggregator::hasTable('d3_oauth_tokens')) {
+        $st = GoogleAuth::status();
+        if ($st && $st['status'] === 'connected') {
+            try {
+                $limit = (int)ini_get('max_execution_time');
+                $budget = $limit > 0 ? max(10, min(40, $limit - 20)) : 40; // genug Zeit für den Rest des Cronjobs lassen
+                $r = GoogleHealth::sync($budget);
+                $log[] = 'Fitbit: ' . $r['message'] . " ({$r['days']} Tage, {$r['requests']} Abrufe, Verlauf {$r['backfill']} %)";
+            } catch (Throwable $e) {
+                $log[] = 'Fitbit-Fehler: ' . $e->getMessage();
+            }
+        } elseif ($st && $st['status'] === 'reauth') {
+            $log[] = 'Fitbit: Google-Verbindung abgelaufen – bitte in der App neu verbinden';
+        } else {
+            $log[] = 'Fitbit: nicht verbunden';
         }
     }
 
@@ -59,6 +78,13 @@ function d3_run_cron(string $job): string
         }
         Db::run('DELETE FROM d3_login_attempts WHERE attempted_at < ?', [now()->modify('-1 day')->format('Y-m-d H:i:s')]);
         Db::run('DELETE FROM d3_sync_log WHERE received_at < ?', [now()->modify('-90 days')->format('Y-m-d H:i:s')]);
+        if (Aggregator::hasTable('d3_oauth_states')) {
+            Db::run('DELETE FROM d3_oauth_states WHERE created_at < ?', [now()->modify('-1 hour')->format('Y-m-d H:i:s')]);
+        }
+        if (Aggregator::hasTable('d3_heart_rate')) {
+            // 5-Minuten-Puls nach 400 Tagen löschen (Tageswerte bleiben erhalten)
+            Db::run('DELETE FROM d3_heart_rate WHERE ts < ?', [now()->modify('-400 days')->format('Y-m-d H:i:s')]);
+        }
         foreach (['app.log', 'php-error.log'] as $lf) {
             $p = D3_PRIVATE . '/logs/' . $lf;
             if (is_file($p) && filesize($p) > 2 * 1024 * 1024) {

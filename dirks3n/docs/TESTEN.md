@@ -34,6 +34,16 @@ Hake nach der Installation diese Punkte ab. Dauer: ca. 10 Minuten.
 - [ ] Heute → Termine von heute sind sichtbar; die Entscheidung schlägt eine freie Uhrzeit vor.
 - [ ] Cron-URL im Browser aufrufen → Text mit „Kalender: …“ und „Entscheidung: …“.
 
+## 6. Fitbit (Google Health)
+- [ ] Profil → Fitbit → **Mit Google verbinden** → nach dem Google-Login erscheint „Fitbit verbunden“.
+- [ ] Profil → Fitbit zeigt **Charge 6**, Akku und „Uhr → App“.
+- [ ] Heute: Schlaf, HRV, Ruhepuls, Schritte, Puls Ø kommen von Fitbit; Karte **„Puls heute“** zeigt den Tagesverlauf.
+- [ ] Statistik → **Herzfrequenz** zeigt Ø pro Tag mit Spanne.
+- [ ] Nach 1–3 Stunden: Profil → Fitbit → „Verlauf (90 Tage)“ steht auf **100 %**.
+- [ ] Cron-URL im Browser → Zeile „Fitbit: Fitbit-Daten aktualisiert (… Verlauf … %)“.
+- [ ] Ein Training, das Fitbit und Apple Health beide melden, erscheint nur **einmal**.
+- [ ] (Bei „Extern + Testing“, nach 7 Tagen) Gelber Hinweis „Neu verbinden“ → antippen → wieder verbunden.
+
 ## Wenn etwas nicht klappt
 - Fehlertexte stehen in `private/logs/app.log` und `private/logs/php-error.log` (per FTP herunterladen).
 - Schick mir die letzten Zeilen (ohne Passwörter/Tokens), dann finden wir den Fehler.

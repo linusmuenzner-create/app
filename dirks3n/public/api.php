@@ -90,6 +90,7 @@ try {
                 'ingest_url' => rtrim((string)cfg('base_url'), '/') . '/ingest.php',
                 'ingest_token' => (string)cfg('ingest_token'),
                 'ai' => aiInfo(),
+                'google' => googleInfo(),
                 'server' => [
                     'php' => PHP_VERSION,
                     'max_execution_time' => (int)ini_get('max_execution_time'),
@@ -99,6 +100,23 @@ try {
                     'https' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
                 ],
             ]);
+
+        case 'google_sync':
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            if (!GoogleAuth::configured() || !GoogleAuth::isConnected()) Http::error('Fitbit ist nicht verbunden', 400);
+            $r = GoogleHealth::sync(25);
+            // Neue Schlafdaten da und noch keine Entscheidung? Dann jetzt entscheiden.
+            if (!$r['reauth'] && Decision::get(today()) === null && (int)now()->format('G') >= 4
+                && (Aggregator::dayValues(today())['sleep_min'] ?? 0) > 0) {
+                Decision::make(today());
+                $r['message'] .= ' · Trainingsentscheidung erstellt';
+            }
+            Http::json($r + ['google' => GoogleHealth::statusInfo()]);
+
+        case 'google_disconnect':
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            if (GoogleAuth::configured()) GoogleAuth::disconnect();
+            Http::json(['ok' => true, 'google' => GoogleHealth::statusInfo()]);
 
         case 'calendar_sync':
             if ($method !== 'POST') Http::error('POST erwartet', 405);
@@ -134,6 +152,25 @@ function aiInfo(): array
     ];
 }
 
+function googleInfo(): array
+{
+    if (!Aggregator::hasTable('d3_oauth_tokens')) {
+        return ['configured' => GoogleAuth::configured(), 'connected' => false, 'reauth' => false, 'needs_update' => true];
+    }
+    return GoogleHealth::statusInfo() + ['needs_update' => false];
+}
+
+/** Herzfrequenz eines Tages in 5-Minuten-Werten: [[HH:MM, Ø, min, max], …] */
+function hrIntraday(string $day): array
+{
+    if (!Aggregator::hasTable('d3_heart_rate')) {
+        return [];
+    }
+    $next = (new DateTimeImmutable($day))->modify('+1 day')->format('Y-m-d');
+    return array_map(fn($r) => [substr($r['ts'], 11, 5), (float)$r['bpm_avg'], (float)$r['bpm_min'], (float)$r['bpm_max']],
+        Db::all('SELECT ts, bpm_avg, bpm_min, bpm_max FROM d3_heart_rate WHERE ts >= ? AND ts < ? ORDER BY ts', ["$day 00:00:00", "$next 00:00:00"]));
+}
+
 function todayPayload(string $day): array
 {
     $readiness = Readiness::forDay($day);
@@ -153,15 +190,37 @@ function todayPayload(string $day): array
         'workouts' => array_map(fn($w) => [
             'activity' => $w['activity'], 'category' => $w['category'], 'start' => substr($w['start_at'], 11, 5),
             'duration_min' => (float)$w['duration_min'], 'energy_kcal' => $w['energy_kcal'] !== null ? (float)$w['energy_kcal'] : null,
+            'avg_hr' => isset($w['avg_hr']) && $w['avg_hr'] !== null ? round((float)$w['avg_hr']) : null,
         ], $workouts),
         'events' => array_map(fn($e) => [
             'title' => $e['title'], 'location' => $e['location'], 'all_day' => (bool)$e['all_day'],
             'start' => substr($e['start_at'], 11, 5), 'end' => substr($e['end_at'], 11, 5),
         ], $events),
-        'sync' => ['health' => $lastHealth, 'calendar' => $lastCal],
+        'sync' => ['health' => $lastHealth, 'calendar' => $lastCal, 'google' => Db::one("SELECT received_at, info FROM d3_sync_log WHERE kind = 'google' ORDER BY id DESC LIMIT 1")],
+        'google' => googleInfo(),
+        'hr_intraday' => hrIntraday($day),
+        'spark' => sparkSeries($day),
         'ai' => aiInfo(),
         'regenerations_left' => max(0, (int)cfg('max_regenerations_per_day', 3) - (int)(Decision::get($day)['revisions'] ?? 0)),
     ];
+}
+
+/** Mini-Verläufe (7 Tage) für die Kacheln */
+function sparkSeries(string $day): array
+{
+    $from = (new DateTimeImmutable($day))->modify('-6 days')->format('Y-m-d');
+    $metrics = ['sleep_min', 'hrv', 'resting_hr', 'steps', 'active_kcal', 'weight', 'hr_avg'];
+    $s = Aggregator::series($from, $day, $metrics);
+    $out = [];
+    foreach ($metrics as $m) {
+        $vals = [];
+        for ($i = 0; $i < 7; $i++) {
+            $d = (new DateTimeImmutable($from))->modify("+$i days")->format('Y-m-d');
+            $vals[] = $s[$m][$d] ?? null;
+        }
+        $out[$m] = $vals;
+    }
+    return $out;
 }
 
 function statsPayload(string $end, int $range): array
@@ -171,7 +230,7 @@ function statsPayload(string $end, int $range): array
     $prevStart = $endD->modify('-' . (2 * $range - 1) . ' days')->format('Y-m-d');
     $prevEnd = $endD->modify("-$range days")->format('Y-m-d');
     $metrics = ['sleep_min', 'sleep_deep_min', 'sleep_rem_min', 'sleep_core_min', 'sleep_bedtime', 'hrv', 'resting_hr', 'steps',
-        'weight', 'body_fat', 'active_kcal', 'basal_kcal', 'training_load', 'training_min', 'vo2max', 'hr_avg'];
+        'weight', 'body_fat', 'active_kcal', 'basal_kcal', 'training_load', 'training_min', 'vo2max', 'hr_avg', 'hr_min', 'hr_max'];
     $cur = Aggregator::series($start, $end, $metrics);
     $prev = Aggregator::series($prevStart, $prevEnd, $metrics);
 
@@ -208,6 +267,7 @@ function statsPayload(string $end, int $range): array
         'workouts' => array_map(fn($w) => [
             'date' => substr($w['start_at'], 0, 10), 'start' => substr($w['start_at'], 11, 5), 'activity' => $w['activity'],
             'category' => $w['category'], 'duration_min' => round((float)$w['duration_min']), 'load' => (float)$w['load_score'],
+            'avg_hr' => isset($w['avg_hr']) && $w['avg_hr'] !== null ? round((float)$w['avg_hr']) : null, 'source' => $w['source'],
             'energy_kcal' => $w['energy_kcal'] !== null ? round((float)$w['energy_kcal']) : null,
         ], array_reverse($workouts)),
     ];

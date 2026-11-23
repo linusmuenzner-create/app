@@ -11,6 +11,20 @@ final class Aggregator
     /** Letzter Wert des Tages */
     private const LAST = ['weight', 'body_fat', 'vo2max'];
 
+    /** Diese Quelle hat Vorrang, wenn sie für einen Tag Daten hat (Fitbit über Google Health) */
+    public const PRIMARY_SOURCE = 'google';
+
+    private static array $tables = [];
+
+    /** Prüft, ob eine Tabelle existiert (falls Update 002 noch nicht eingespielt wurde) */
+    public static function hasTable(string $name): bool
+    {
+        if (!array_key_exists($name, self::$tables)) {
+            self::$tables[$name] = Db::value('SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ?', [$name]) > 0;
+        }
+        return self::$tables[$name];
+    }
+
     /** Alle Tagesmetriken, die hier berechnet werden (zum Aufräumen alter Werte) */
     private const COMPUTED = [
         'steps', 'active_kcal', 'basal_kcal', 'exercise_min', 'hrv', 'resting_hr', 'weight', 'body_fat', 'vo2max',
@@ -50,11 +64,16 @@ final class Aggregator
         foreach (self::SUM as $m) {
             $rows = Db::all('SELECT source, SUM(value) AS s FROM d3_health_samples WHERE metric = ? AND start_at >= ? AND start_at < ? GROUP BY source', [$m, $from, $to]);
             if ($rows) {
-                $vals[$m] = max(array_map(fn($r) => (float)$r['s'], $rows));
+                // Fitbit (Google Health) hat Vorrang; sonst die Quelle mit dem höchsten Wert
+                $google = array_values(array_filter($rows, fn($r) => $r['source'] === self::PRIMARY_SOURCE));
+                $vals[$m] = $google ? (float)$google[0]['s'] : max(array_map(fn($r) => (float)$r['s'], $rows));
             }
         }
         foreach (self::AVG as $m) {
-            $v = Db::value('SELECT AVG(value) FROM d3_health_samples WHERE metric = ? AND start_at >= ? AND start_at < ?', [$m, $from, $to]);
+            $v = Db::value('SELECT AVG(value) FROM d3_health_samples WHERE metric = ? AND source = ? AND start_at >= ? AND start_at < ?', [$m, self::PRIMARY_SOURCE, $from, $to]);
+            if ($v === null) {
+                $v = Db::value('SELECT AVG(value) FROM d3_health_samples WHERE metric = ? AND start_at >= ? AND start_at < ?', [$m, $from, $to]);
+            }
             if ($v !== null) {
                 $vals[$m] = round((float)$v, 1);
             }
@@ -65,7 +84,13 @@ final class Aggregator
                 $vals[$m] = round((float)$v, 2);
             }
         }
-        $hr = Db::one('SELECT AVG(value) a, MIN(value) mi, MAX(value) ma, COUNT(*) c FROM d3_health_samples WHERE metric = ? AND start_at >= ? AND start_at < ?', ['heart_rate', $from, $to]);
+        // Herzfrequenz: zuerst Fitbit-5-Minuten-Werte, sonst Einzelwerte aus Apple Health
+        $hr = self::hasTable('d3_heart_rate')
+            ? Db::one('SELECT AVG(bpm_avg) a, MIN(bpm_min) mi, MAX(bpm_max) ma, COUNT(*) c FROM d3_heart_rate WHERE ts >= ? AND ts < ?', [$from, $to])
+            : null;
+        if (!$hr || (int)$hr['c'] === 0) {
+            $hr = Db::one('SELECT AVG(value) a, MIN(value) mi, MAX(value) ma, COUNT(*) c FROM d3_health_samples WHERE metric = ? AND start_at >= ? AND start_at < ?', ['heart_rate', $from, $to]);
+        }
         if ($hr && (int)$hr['c'] > 0) {
             $vals['hr_avg'] = round((float)$hr['a'], 1);
             $vals['hr_min'] = (float)$hr['mi'];
@@ -95,9 +120,14 @@ final class Aggregator
         $d = new DateTimeImmutable($day);
         $winFrom = $d->modify('-1 day')->format('Y-m-d') . ' 20:00:00';
         $winTo = $day . ' 20:00:00';
-        $rows = Db::all('SELECT start_at, end_at, text_value FROM d3_health_samples WHERE metric = ? AND end_at >= ? AND end_at < ?', ['sleep', $winFrom, $winTo]);
+        $rows = Db::all('SELECT start_at, end_at, text_value, source FROM d3_health_samples WHERE metric = ? AND end_at >= ? AND end_at < ?', ['sleep', $winFrom, $winTo]);
         if (!$rows) {
             return [];
+        }
+        // Gibt es Fitbit-Schlaf für diese Nacht, zählt nur dieser (keine Vermischung mit Apple-Health-Kopien)
+        $google = array_values(array_filter($rows, fn($r) => $r['source'] === self::PRIMARY_SOURCE));
+        if ($google) {
+            $rows = $google;
         }
         $byStage = [];
         foreach ($rows as $r) {
@@ -163,7 +193,8 @@ final class Aggregator
 
     public static function dedupedWorkouts(string $from, string $to): array
     {
-        $rows = Db::all('SELECT * FROM d3_workouts WHERE start_at >= ? AND start_at < ? ORDER BY duration_min DESC', [$from, $to]);
+        // Bei Überschneidungen gewinnt Fitbit (Google Health), danach das längere Training
+        $rows = Db::all('SELECT * FROM d3_workouts WHERE start_at >= ? AND start_at < ? ORDER BY (source = ?) DESC, duration_min DESC', [$from, $to, self::PRIMARY_SOURCE]);
         $kept = [];
         foreach ($rows as $w) {
             $s = strtotime($w['start_at']);

@@ -54,13 +54,13 @@ function h(string $s): string
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dirks3n – Einrichtung</title>
 <style>
-  body { background:#0e0e10; color:#f0efec; font:16px/1.5 -apple-system, system-ui, sans-serif; margin:0; padding:24px 16px; }
+  body { background:#07080a; color:#f4f6f8; font:16px/1.5 -apple-system, system-ui, sans-serif; margin:0; padding:24px 16px; }
   main { max-width:420px; margin:0 auto; }
-  h1 { font-size:24px; } label { display:block; margin:14px 0 4px; color:#c3c2b7; font-size:14px; }
-  input { width:100%; box-sizing:border-box; padding:12px; border-radius:10px; border:1px solid #333; background:#1a1a19; color:#f0efec; font-size:16px; }
-  button { margin-top:20px; width:100%; padding:14px; border:0; border-radius:12px; background:#3987e5; color:#fff; font-size:16px; font-weight:600; }
+  h1 { font-size:24px; } label { display:block; margin:14px 0 4px; color:#a3abb8; font-size:14px; }
+  input { width:100%; box-sizing:border-box; padding:12px; border-radius:10px; border:1px solid #333; background:#171a20; color:#f4f6f8; font-size:16px; }
+  button { margin-top:20px; width:100%; padding:14px; border:0; border-radius:14px; background:#c6f432; color:#0b0d10; font-size:16px; font-weight:600; }
   .msg { padding:12px; border-radius:10px; background:#3a1d1d; margin-top:16px; } .ok { background:#14301f; }
-  a { color:#86b6ef; }
+  a { color:#c6f432; }
 </style>
 </head>
 <body><main>
