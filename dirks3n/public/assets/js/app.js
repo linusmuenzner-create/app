@@ -611,8 +611,11 @@
       return `<section class="card"><div class="card-head"><div class="card-title">${ico('watch', 'sm')}Fitbit</div></div><p class="small secondary" style="margin:0">Bitte zuerst <b>private/sql/update_002_google.sql</b> in phpMyAdmin ausführen (Anleitung: docs/GOOGLE-HEALTH.md).</p></section>`;
     }
     if (!g.configured) {
+      const issues = g.config_issues || [];
       return `<section class="card"><div class="card-head"><div class="card-title">${ico('watch', 'sm')}Fitbit</div><span class="tag">nicht eingerichtet</span></div>
-        <p class="small secondary" style="margin:0">Trage Client-ID, Client-Secret und encryption_key in <b>private/config.php</b> ein – Schritt für Schritt in docs/GOOGLE-HEALTH.md.</p></section>`;
+        <p class="small secondary" style="margin:0 0 8px">Der Knopf „Mit Google verbinden“ erscheint, sobald in <b>private/config.php</b> alles stimmt. Das fehlt noch:</p>
+        ${issues.length ? issues.map((i) => `<div class="warn" style="margin-top:6px">${ico('warn', 'sm')}<span>${esc(i)}</span></div>`).join('') : '<p class="small muted">Konfiguration unvollständig (siehe docs/GOOGLE-HEALTH.md).</p>'}
+        <p class="small muted" style="margin:10px 0 0">Nach dem Ändern config.php erneut hochladen und diese Seite neu laden.</p></section>`;
     }
     if (!g.connected && !g.reauth) {
       return `<section class="card"><div class="card-head"><div class="card-title">${ico('watch', 'sm')}Fitbit</div><span class="tag">nicht verbunden</span></div>

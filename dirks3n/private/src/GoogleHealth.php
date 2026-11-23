@@ -550,6 +550,8 @@ final class GoogleHealth
         }
         return [
             'configured' => $configured,
+            'config_issues' => $configured ? [] : GoogleAuth::configIssues(),
+            'redirect_uri' => GoogleAuth::redirectUri(),
             'connected' => $st !== null && $st['status'] === 'connected',
             'reauth' => $st !== null && $st['status'] === 'reauth',
             'connected_at' => $st['connected_at'] ?? null,

@@ -33,6 +33,37 @@ final class GoogleAuth
         return !empty($g['client_id']) && !empty($g['client_secret']) && Crypto::configured();
     }
 
+    /** Was fehlt in config.php? (für die Anzeige in der App – nie die Werte selbst) */
+    public static function configIssues(): array
+    {
+        $issues = [];
+        $g = cfg('google', null);
+        if (!is_array($g)) {
+            return ["Der Abschnitt 'google' => [ … ] fehlt in config.php (Vorlage: config.sample.php)."];
+        }
+        $id = trim((string)($g['client_id'] ?? ''));
+        $secret = trim((string)($g['client_secret'] ?? ''));
+        if ($id === '') {
+            $issues[] = 'client_id ist leer.';
+        } elseif (!str_ends_with($id, '.apps.googleusercontent.com')) {
+            $issues[] = 'client_id sieht falsch aus – sie muss auf .apps.googleusercontent.com enden.';
+        }
+        if ($secret === '') {
+            $issues[] = 'client_secret ist leer.';
+        }
+        $key = (string)cfg('encryption_key', '');
+        if ($key === '') {
+            $issues[] = "encryption_key fehlt oder ist leer (64 Zeichen aus 0–9 und a–f, z. B. mit 'openssl rand -hex 32').";
+        } elseif (!preg_match('/^[0-9a-f]{64}$/i', $key)) {
+            $issues[] = 'encryption_key ist ungültig: ' . strlen($key) . ' Zeichen – nötig sind genau 64 Zeichen, nur 0–9 und a–f (keine Leerzeichen).';
+        }
+        $redirect = self::redirectUri();
+        if (!str_starts_with($redirect, 'https://') && !str_contains($redirect, 'localhost')) {
+            $issues[] = 'redirect_uri muss mit https:// beginnen.';
+        }
+        return $issues;
+    }
+
     private static function c(string $k): string
     {
         $g = (array)cfg('google', []);

@@ -288,7 +288,7 @@ function aiInfo(): array
 function googleInfo(): array
 {
     if (!Aggregator::hasTable('d3_oauth_tokens')) {
-        return ['configured' => GoogleAuth::configured(), 'connected' => false, 'reauth' => false, 'needs_update' => true];
+        return ['configured' => GoogleAuth::configured(), 'config_issues' => GoogleAuth::configIssues(), 'connected' => false, 'reauth' => false, 'needs_update' => true];
     }
     return GoogleHealth::statusInfo() + ['needs_update' => false];
 }
