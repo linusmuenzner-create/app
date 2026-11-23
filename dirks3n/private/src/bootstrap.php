@@ -22,7 +22,7 @@ ini_set('log_errors', '1');
 ini_set('error_log', D3_PRIVATE . '/logs/php-error.log');
 mb_internal_encoding('UTF-8');
 
-foreach (['Db', 'Http', 'Auth', 'Settings', 'HealthIngest', 'Aggregator', 'Readiness', 'Claude', 'Decision', 'Ics', 'Crypto', 'GoogleAuth', 'GoogleHealth', 'Exercises', 'Training'] as $cls) {
+foreach (['Db', 'Http', 'Auth', 'Settings', 'HealthIngest', 'Aggregator', 'Readiness', 'Claude', 'Decision', 'Ics', 'Crypto', 'GoogleAuth', 'GoogleHealth', 'Exercises', 'Training', 'Goals'] as $cls) {
     require_once __DIR__ . '/' . $cls . '.php';
 }
 

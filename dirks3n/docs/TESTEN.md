@@ -58,6 +58,16 @@ Hake nach der Installation diese Punkte ab. Dauer: ca. 10 Minuten.
 - [ ] „Auf Deutsch übersetzen“ → Anleitung erscheint auf Deutsch (einmalig ca. 0,0003 $).
 - [ ] Bildschirm bleibt während des Trainings an (iPhone ab iOS 16.4).
 
+## 8. Ziel-Chat
+- [ ] `private/sql/update_004_goals.sql` in phpMyAdmin ausgeführt (nur bei bestehender Installation).
+- [ ] Abmelden und neu anmelden → es öffnet sich direkt **„Deine Ziele“** (nur solange noch keine Ziele gespeichert sind).
+- [ ] Ziel frei hineinschreiben, z. B. „5 km unter 20 Minuten und Muskeln aufbauen“ → der Coach fragt nach (Zeitraum, aktueller Stand, Beschwerden, Zeit pro Tag).
+- [ ] Nach ein paar Antworten erscheint ein **Vorschlag** mit nummerierten Zielen → **Ziele bestätigen**.
+- [ ] Heute zeigt die Karte **„Deine Ziele“**, Profil ebenso.
+- [ ] Profil → „Im Chat ändern“ → z. B. „Das Laufziel ist mir wichtiger, Muskelaufbau nur nebenbei“ → neuer Vorschlag → bestätigen.
+- [ ] „Später“ (beim ersten Mal) überspringt den Chat; auf Heute bleibt der Hinweis „Ziele festlegen“.
+- [ ] „Neu planen“ auf Heute → der Plan bezieht sich auf deine Ziele.
+
 ## Wenn etwas nicht klappt
 - Fehlertexte stehen in `private/logs/app.log` und `private/logs/php-error.log` (per FTP herunterladen).
 - Schick mir die letzten Zeilen (ohne Passwörter/Tokens), dann finden wir den Fehler.

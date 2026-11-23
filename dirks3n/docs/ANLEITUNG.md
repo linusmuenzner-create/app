@@ -34,7 +34,7 @@ Notiere sie kurz (z. B. in deinem Passwort-Manager). Sie kommen gleich in die Ko
 4. In der Liste bei der neuen Datenbank auf **phpMyAdmin** klicken und mit Datenbankname + Passwort anmelden.
 5. Links die Datenbank anklicken → oben Reiter **SQL**.
 6. Die Datei `private/sql/schema.sql` in deinem Editor öffnen, **alles** kopieren, in das SQL-Feld einfügen → **OK**.
-7. Links sollten jetzt 17 Tabellen erscheinen, die mit `d3_` beginnen. ✅
+7. Links sollten jetzt 19 Tabellen erscheinen, die mit `d3_` beginnen. ✅
    (Bei einer Neuinstallation sind damit alle Updates schon enthalten – die Dateien `update_00x_….sql` brauchst du dann **nicht**.)
 
 ---

@@ -363,3 +363,28 @@ details.table td:first-child, details.table th:first-child { text-align: left; }
 .steps-list li { margin-bottom: 8px; }
 .backlink { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; color: var(--text-secondary); margin: 6px 0 4px; background: none; border: 0; cursor: pointer; padding: 6px 0; font-size: 15px; }
 .trophy { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 14px; background: rgba(198,244,50,.2); margin-top: 8px; font-size: 14px; }
+
+/* ================================================================ Ziel-Chat */
+.chat { display: flex; flex-direction: column; gap: 10px; padding-bottom: 120px; }
+.msg { max-width: 86%; padding: 11px 14px; border-radius: 18px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; }
+.msg.assistant { align-self: flex-start; background: var(--surface-1); border: 1px solid var(--border); border-bottom-left-radius: 6px; box-shadow: var(--shadow); }
+.msg.user { align-self: flex-end; background: #0e1116; color: #fff; border-bottom-right-radius: 6px; }
+.msg.typing { color: var(--text-muted); }
+.proposal { align-self: stretch; background: var(--surface-1); border: 2px solid #b2e01c; border-radius: 20px; padding: 14px; box-shadow: var(--shadow); }
+.goal-item { display: flex; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border); }
+.goal-item:first-of-type { border-top: 0; }
+.goal-prio { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none; font: 700 13px var(--font-display); background: var(--surface-2); color: var(--text-secondary); }
+.goal-prio.p1 { background: var(--lime); color: var(--lime-ink); }
+.goal-item .t { font-weight: 600; }
+.goal-item .d { font-size: 13px; color: var(--text-secondary); }
+.composer {
+  position: fixed; left: 50%; transform: translateX(-50%); z-index: 12;
+  bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom) + 22px);
+  width: min(560px, calc(100% - 24px)); display: flex; gap: 8px; align-items: flex-end;
+  padding: 8px; border-radius: 22px; background: rgba(255,255,255,.92); border: 1px solid var(--border-strong); box-shadow: var(--shadow-lg);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+}
+.composer textarea { min-height: 44px; max-height: 140px; resize: none; border: 0; background: transparent; padding: 11px 10px; }
+.composer textarea:focus { outline: none; background: transparent; }
+.composer .btn { min-height: 44px; width: 44px; padding: 0; border-radius: 14px; flex: none; }
+.goal-strip { display: flex; flex-direction: column; gap: 2px; }

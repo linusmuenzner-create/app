@@ -17,7 +17,8 @@ try {
     // ---------------------------------------------------------------- ohne Login
     if ($action === 'session') {
         $uid = Auth::userId();
-        Http::json(['loggedIn' => $uid !== null, 'csrf' => Auth::csrfToken(), 'hasUser' => Auth::hasUser()]);
+        Http::json(['loggedIn' => $uid !== null, 'csrf' => Auth::csrfToken(), 'hasUser' => Auth::hasUser(),
+            'needsGoals' => $uid !== null && Goals::needsSetup()]);
     }
     if ($action === 'login' && $method === 'POST') {
         $b = Http::body();
@@ -91,6 +92,7 @@ try {
                 'ingest_token' => (string)cfg('ingest_token'),
                 'ai' => aiInfo(),
                 'google' => googleInfo(),
+                'goals' => Goals::active(),
                 'server' => [
                     'php' => PHP_VERSION,
                     'max_execution_time' => (int)ini_get('max_execution_time'),
@@ -117,6 +119,37 @@ try {
             if ($method !== 'POST') Http::error('POST erwartet', 405);
             if (GoogleAuth::configured()) GoogleAuth::disconnect();
             Http::json(['ok' => true, 'google' => GoogleHealth::statusInfo()]);
+
+        // ------------------------------------------------------------ Ziele (Ziel-Chat)
+        case 'goals':
+            requireGoals();
+            $msgs = Goals::messages();
+            Http::json(['goals' => Goals::active(), 'constraints' => Goals::constraints(), 'categories' => Goals::CATEGORIES,
+                'messages' => $msgs ?: [['id' => 0, 'role' => 'assistant', 'content' => Goals::greeting(), 'proposal' => null, 'at' => null]],
+                'ai' => Claude::available()]);
+
+        case 'goal_chat':
+            requireGoals();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            Http::json(['messages' => Goals::send((string)(Http::body()['message'] ?? ''))]);
+
+        case 'goal_confirm':
+            requireGoals();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            $goals = Goals::confirm((int)(Http::body()['message_id'] ?? 0));
+            Http::json(['goals' => $goals, 'messages' => Goals::messages()]);
+
+        case 'goals_reset':
+            requireGoals();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            Goals::reset();
+            Http::json(['ok' => true]);
+
+        case 'goals_skip':
+            requireGoals();
+            if ($method !== 'POST') Http::error('POST erwartet', 405);
+            Settings::set('goals_skipped', true);
+            Http::json(['ok' => true]);
 
         // ------------------------------------------------------------ Übungen & Training
         case 'exercises':
@@ -219,6 +252,13 @@ function validDay($d): string
     return $d;
 }
 
+function requireGoals(): void
+{
+    if (!Goals::available()) {
+        Http::error('Datenbank-Update 004 fehlt: private/sql/update_004_goals.sql in phpMyAdmin ausführen.', 409);
+    }
+}
+
 function requireTraining(): void
 {
     if (!Training::available()) {
@@ -291,6 +331,7 @@ function todayPayload(string $day): array
         ], $events),
         'sync' => ['health' => $lastHealth, 'calendar' => $lastCal, 'google' => Db::one("SELECT received_at, info FROM d3_sync_log WHERE kind = 'google' ORDER BY id DESC LIMIT 1")],
         'google' => googleInfo(),
+        'goals' => Goals::active(),
         'hr_intraday' => hrIntraday($day),
         'spark' => sparkSeries($day),
         'ai' => aiInfo(),

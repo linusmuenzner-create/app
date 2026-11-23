@@ -45,8 +45,8 @@ return [
         'translate'     => 'claude-haiku-5-5',  // Übungsanleitungen einmalig übersetzen
     ],
 
-    // Harte Kostengrenze pro Kalendermonat in US-Dollar. Danach nur noch Regeln.
-    'ai_monthly_budget_usd' => 3.00,
+    // Harte Kostengrenze pro Kalendermonat in US-Dollar (4,30 $ ≈ 4 €). Danach nur noch Regeln.
+    'ai_monthly_budget_usd' => 4.30,
 
     // Bis wann spätestens entschieden wird, falls morgens keine Daten kamen (Uhrzeit, 24h)
     'decision_deadline_hour' => 10,

@@ -2,13 +2,13 @@
  * Speichert nur die App-Hülle (HTML/CSS/JS/Icons) für schnelles Starten.
  * Gesundheitsdaten (api.php) werden NIE zwischengespeichert.
  */
-const CACHE = 'dirks3n-shell-v4';
+const CACHE = 'dirks3n-shell-v5';
 const SHELL = [
   './',
   'index.html',
   'manifest.webmanifest',
-  'assets/css/app.css?v=4',
-  'assets/js/app.js?v=4',
+  'assets/css/app.css?v=5',
+  'assets/js/app.js?v=5',
   'assets/fonts/inter-latin.woff2',
   'assets/fonts/space-grotesk-latin.woff2',
   'assets/vendor/chart.umd.min.js?v=4.4.7',

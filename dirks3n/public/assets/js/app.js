@@ -128,7 +128,9 @@
       try {
         const r = await api('login', { method: 'POST', body: { username: f.get('username'), password: f.get('password') } });
         state.csrf = r.csrf;
-        if (!location.hash || location.hash === '#/') location.hash = '#/heute';
+        const sess = await api('session');
+        if (sess.needsGoals) location.hash = '#/ziele';
+        else if (!location.hash || location.hash === '#/') location.hash = '#/heute';
         route();
       } catch (ex) {
         err.textContent = ex.message;
@@ -200,6 +202,9 @@
       </section>
 
       ${decisionCard(d)}
+
+      ${d.goals && d.goals.length ? `<section class="card fade-in"><div class="card-head"><div class="card-title">${ico('target', 'sm')}Deine Ziele</div><a class="linkbtn" href="#/ziele" style="padding:0">Ändern</a></div>${goalList(d.goals)}</section>`
+        : (d.is_today ? `<a class="banner" href="#/ziele" style="background:var(--lime);border-color:#b2e01c;color:var(--lime-ink)">${ico('target')}<div class="grow" style="color:var(--lime-ink)"><b>Ziele festlegen</b> – damit plant dirks3n gezielt für dich.</div>${ico('next', 'sm')}</a>` : '')}
 
       <div class="tiles fade-in">
         ${tile('Schlaf', 'moon', v.sleep_min != null ? hm(v.sleep_min) : '–', 'h',
@@ -645,6 +650,11 @@
     const versionOk = (v) => { const [maj, min] = String(v).split('.').map(Number); return maj > 8 || (maj === 8 && min >= 1); };
     $app.innerHTML = `
       <header class="header fade-in"><div><div class="eyebrow">Ziele · Quellen · Konto</div><h1>Profil<span class="accent">.</span></h1></div></header>
+
+      <section class="card">
+        <div class="card-head"><div class="card-title">${ico('target', 'sm')}Ziele</div><a class="linkbtn" href="#/ziele" style="padding:0">Im Chat ändern</a></div>
+        ${(s.goals || []).length ? goalList(s.goals) : '<p class="small muted" style="margin:0">Noch keine Ziele – tippe auf „Im Chat ändern“.</p>'}
+      </section>
 
       ${fitbitCard(s.google || {})}
 
@@ -1120,10 +1130,84 @@
     if (saved && saved.end > Date.now() - 60000) state.rest = saved;
   } catch (e) { /* egal */ }
 
+  // ------------------------------------------------------------------ Ziele (Ziel-Chat)
+  const fmtDate = (d) => d ? parseDay(d).toLocaleDateString('de-DE', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+  const goalLine = (g) => [g.target && `Ziel: ${g.target}`, g.baseline && `jetzt: ${g.baseline}`, g.deadline && `bis ${fmtDate(g.deadline)}`].filter(Boolean).join(' · ');
+
+  function goalList(goals) {
+    return goals.map((g) => `<div class="goal-item"><span class="goal-prio ${g.priority === 1 ? 'p1' : ''}">${g.priority}</span>
+      <div><div class="t">${esc(g.title)}</div><div class="d">${esc(goalLine(g))}</div>${g.notes ? `<div class="small muted">${esc(g.notes)}</div>` : ''}</div></div>`).join('');
+  }
+
+  async function renderGoals() {
+    $app.innerHTML = '<div class="skeleton" style="height:70px;background:none"></div><div class="skeleton" style="height:120px"></div>';
+    let d;
+    try { d = await api('goals'); } catch (e) { $app.innerHTML = `<div class="card">${esc(e.message)}</div>`; return; }
+    const first = !d.goals.length;
+    $app.innerHTML = `
+      <header class="header fade-in"><div><div class="eyebrow">${first ? 'Willkommen bei dirks3n' : 'Ziele ändern'}</div><h1>Deine Ziele<span class="accent">.</span></h1></div>
+        ${first ? '<button class="btn ghost" id="skipGoals" style="min-height:40px;padding:8px 14px">Später</button>' : '<button class="btn ghost" id="resetGoals" style="min-height:40px;padding:8px 14px">Neu beginnen</button>'}</header>
+      ${d.goals.length ? `<section class="card fade-in"><div class="card-head"><div class="card-title">${ico('target', 'sm')}Aktuell gespeichert</div></div>${goalList(d.goals)}</section>` : ''}
+      <div class="chat" id="chat"></div>
+      <form class="composer" id="composer">
+        <textarea id="chatIn" rows="1" placeholder="${d.ai ? 'Schreib deine Ziele …' : 'KI nicht verfügbar'}" ${d.ai ? '' : 'disabled'} maxlength="1500"></textarea>
+        <button class="btn primary" type="submit" aria-label="Senden" ${d.ai ? '' : 'disabled'}>${ico('next')}</button>
+      </form>`;
+    drawChat(d.messages);
+    const input = document.getElementById('chatIn');
+    input.addEventListener('input', () => { input.style.height = 'auto'; input.style.height = Math.min(140, input.scrollHeight) + 'px'; });
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey && window.matchMedia('(pointer:fine)').matches) { e.preventDefault(); document.getElementById('composer').requestSubmit(); } });
+    document.getElementById('composer').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = ''; input.style.height = 'auto';
+      const chat = document.getElementById('chat');
+      chat.insertAdjacentHTML('beforeend', `<div class="msg user">${esc(text)}</div><div class="msg assistant typing" id="typing"><span class="spinner" style="width:14px;height:14px;border-width:2px;vertical-align:-2px"></span> Coach schreibt …</div>`);
+      window.scrollTo(0, document.body.scrollHeight);
+      try {
+        const r = await api('goal_chat', { method: 'POST', body: { message: text } });
+        drawChat(r.messages);
+      } catch (ex) {
+        document.getElementById('typing')?.remove();
+        toast(ex.message, 6000);
+        input.value = text;
+      }
+    });
+    const sk = document.getElementById('skipGoals');
+    if (sk) sk.onclick = async () => { await api('goals_skip', { method: 'POST' }); location.hash = '#/heute'; };
+    const rs = document.getElementById('resetGoals');
+    if (rs) rs.onclick = async () => { if (!window.confirm('Gespräch neu beginnen? Deine gespeicherten Ziele bleiben, bis du neue bestätigst.')) return; await api('goals_reset', { method: 'POST' }); renderGoals(); };
+  }
+
+  function drawChat(messages) {
+    const chat = document.getElementById('chat');
+    if (!chat) return;
+    const lastProposal = [...messages].reverse().find((m) => m.proposal);
+    chat.innerHTML = messages.map((m) => {
+      let html = `<div class="msg ${m.role === 'user' ? 'user' : 'assistant'}">${esc(m.content)}</div>`;
+      if (m.proposal && m === lastProposal) {
+        const c = m.proposal.constraints || {};
+        const extra = [c.minutes_per_day ? `max. ${c.minutes_per_day} min pro Tag` : '', c.injuries ? `Beschwerden: ${c.injuries}` : '', c.equipment || ''].filter(Boolean).join(' · ');
+        html += `<div class="proposal fade-in"><div class="card-head"><div class="card-title">${ico('target', 'sm')}Vorschlag</div><span class="tag">bitte prüfen</span></div>
+          ${goalList(m.proposal.goals)}${extra ? `<p class="small muted" style="margin:8px 0 0">${esc(extra)}</p>` : ''}
+          <button class="btn primary block" data-confirm="${m.id}" style="margin-top:12px">${ico('check', 'sm')}Ziele bestätigen</button>
+          <p class="small muted" style="margin:8px 0 0;text-align:center">Etwas anders? Schreib es einfach unten.</p></div>`;
+      }
+      return html;
+    }).join('');
+    chat.querySelectorAll('[data-confirm]').forEach((b) => b.addEventListener('click', async () => {
+      b.disabled = true;
+      try { await api('goal_confirm', { method: 'POST', body: { message_id: Number(b.dataset.confirm) } }); toast('Ziele gespeichert'); renderGoals(); }
+      catch (ex) { toast(ex.message, 5000); b.disabled = false; }
+    }));
+    window.scrollTo(0, document.body.scrollHeight);
+  }
+
   // ------------------------------------------------------------------ Router
   async function route() {
     const parts = (location.hash.replace('#/', '') || 'heute').split('?')[0].split('/');
-    const tab = ['uebung', 'uebungen'].includes(parts[0]) ? 'training' : parts[0];
+    const tab = ['uebung', 'uebungen'].includes(parts[0]) ? 'training' : (parts[0] === 'ziele' ? 'einstellungen' : parts[0]);
     destroyCharts();
     clearInterval(drawSession._clock);
     if (!(parts[0] === 'training' && parts[1] === 's')) keepAwake(false);
@@ -1131,6 +1215,7 @@
     $tabbar.querySelectorAll('a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab));
     window.scrollTo(0, 0);
     if (state.rest) drawRest();
+    if (parts[0] === 'ziele') return renderGoals();
     if (parts[0] === 'training' && parts[1] === 's' && parts[2]) return renderSession(Number(parts[2]));
     if (parts[0] === 'training') return renderTraining();
     if (parts[0] === 'uebungen') return renderLibrary(parts[1] === 'pick' ? parts[2] : null);
@@ -1145,6 +1230,7 @@
       const s = await api('session');
       state.csrf = s.csrf;
       if (!s.loggedIn) return renderLogin(s.hasUser);
+      if (s.needsGoals) { location.hash = '#/ziele'; route(); return; }
       if (!location.hash) location.hash = '#/heute';
       route();
     } catch (e) {

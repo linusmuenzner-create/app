@@ -28,6 +28,7 @@ dirks3n/
 │   ├── sql/schema.sql      Datenbank-Tabellen (Neuinstallation)
 │   ├── sql/update_002_google.sql   Update: Fitbit/Google
 │   ├── sql/update_003_training.sql Update: Workout-Tracking
+│   ├── sql/update_004_goals.sql    Update: Ziel-Chat
 │   ├── data/exercises.json  Übungsbibliothek (Free Exercise DB, gemeinfrei)
 │   ├── src/                PHP-Logik
 │   │   ├── HealthIngest.php  Daten einlesen (Kurzbefehl-Text oder JSON)
@@ -40,6 +41,7 @@ dirks3n/
 │   │   ├── Crypto.php        Verschlüsselung der Tokens
 │   │   ├── Exercises.php     Übungsbibliothek, deutsche Kernauswahl, Bild-Cache
 │   │   ├── Training.php      Trainingseinheiten, Sätze, Gewichtssteigerung, Verlauf
+│   │   ├── Goals.php         Ziel-Chat (Nachfragen, strukturierte Ziele, Bestätigung)
 │   │   └── Ics.php           Kalender (inkl. Serientermine)
 │   ├── cron/run.php
 │   └── logs/ sessions/ uploads/ cache/
@@ -58,7 +60,8 @@ dirks3n/
 
 ## Updates einspielen
 1. Fehlende Datenbank-Updates in phpMyAdmin ausführen (jeweils nur einmal, in dieser Reihenfolge):
-   `private/sql/update_002_google.sql` (Fitbit) → `private/sql/update_003_training.sql` (Training).
+   `private/sql/update_002_google.sql` (Fitbit) → `private/sql/update_003_training.sql` (Training)
+   → `private/sql/update_004_goals.sql` (Ziel-Chat).
 2. Alle Dateien außer `private/config.php` per FTP überschreiben (inkl. neuer Ordner `private/data/`).
 3. Optional in `config.php` unter `models` ergänzen: `'translate' => 'claude-haiku-5-5',`
    (ohne Eintrag wird automatisch Haiku genutzt).
