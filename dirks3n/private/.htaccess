@@ -1,0 +1,2 @@
+# Dieser Ordner darf NIE über das Internet erreichbar sein (zusätzliche Sicherung).
+Require all denied

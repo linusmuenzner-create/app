@@ -1,0 +1,10 @@
+private/config.php
+private/logs/*
+!private/logs/.htaccess
+private/sessions/*
+!private/sessions/.htaccess
+private/uploads/*
+!private/uploads/.htaccess
+private/cache/*
+!private/cache/.htaccess
+node_modules/

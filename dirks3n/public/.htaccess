@@ -1,0 +1,37 @@
+# dirks3n – Sicherheit & HTTPS (Apache bei ALL-INKL)
+
+# Keine Verzeichnis-Listen
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # HTTPS erzwingen
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  # Authorization-Header an PHP weiterreichen (für den Kurzbefehl-Token)
+  RewriteCond %{HTTP:Authorization} .
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+</IfModule>
+
+# Versteckte Dateien (.user.ini, .htaccess, .git …) sperren
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=31536000"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "same-origin"
+  Header always set X-Frame-Options "DENY"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(self)"
+  <FilesMatch "\.(html)$">
+    Header set Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "^(sw\.js|manifest\.webmanifest)$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+</IfModule>
+
+AddType application/manifest+json .webmanifest
